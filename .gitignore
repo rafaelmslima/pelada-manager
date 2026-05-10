@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+pelada_manager.db
+.pytest_cache/
+.idea/
+.vscode/
