@@ -279,6 +279,7 @@ input:focus, select:focus { outline: none; border-color: #32936c; box-shadow: 0 
   .hero-stats small { font-size: 0.74rem; }
   .mobile-home-shell { display: grid; gap: 12px; margin: 0 0 12px; }
   .mobile-generate-button { width: 100%; min-height: 48px; border-radius: 12px; }
+  .mobile-save-match-button { width: 100%; min-height: 48px; border-radius: 12px; }
   .mobile-today-card { padding: 16px; border-radius: 16px; box-shadow: none; }
   .mobile-today-card h3 { margin: 0 0 10px; color: #0f533e; }
   .mobile-today-card dl { margin: 0; display: grid; gap: 8px; }
@@ -404,8 +405,42 @@ input:focus, select:focus { outline: none; border-color: #32936c; box-shadow: 0 
     margin-bottom: 10px;
   }
   #homeView aside.panel,
-  #homeView .list-panel,
-  #homeView #teamsResult { display: none; }
+  #homeView .list-panel { display: none; }
+  #homeView {
+    display: block;
+  }
+  #homeView .content {
+    display: block;
+  }
+  #homeView #teamsResult {
+    display: grid;
+    gap: 12px;
+    margin-top: 12px;
+  }
+  #homeView #teamsResult:empty {
+    display: none;
+  }
+  .teams-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .team-card {
+    border-radius: 16px;
+    box-shadow: none;
+  }
+  .team-card header {
+    padding: 14px;
+  }
+  .team-player {
+    grid-template-columns: 1fr;
+    padding: 12px 14px;
+  }
+  .generated-player {
+    grid-template-columns: 1fr;
+  }
+  .compact-select {
+    width: 100%;
+  }
   .player-row, .match-row, .generated-player, .stats-player, .details-heading, .share-toolbar { grid-template-columns: 1fr; }
   .hero-stats { grid-template-columns: 1fr 1fr; }
   .row-actions button { flex: 1; min-height: 42px; }

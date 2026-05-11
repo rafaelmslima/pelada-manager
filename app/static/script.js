@@ -50,6 +50,7 @@ const peladaTimeInput = document.querySelector("#peladaTimeInput");
 const peladaBillingTypeInput = document.querySelector("#peladaBillingTypeInput");
 const profileLogoutButton = document.querySelector("#profileLogoutButton");
 const mobileGenerateTeamsButton = document.querySelector("#mobileGenerateTeamsButton");
+const mobileSaveMatchButton = document.querySelector("#mobileSaveMatchButton");
 const mobileHistoryButton = document.querySelector("#mobileHistoryButton");
 const mobileActivePlayers = document.querySelector("#mobileActivePlayers");
 const mobileTotalPlayers = document.querySelector("#mobileTotalPlayers");
@@ -149,15 +150,21 @@ generateTeamsButton.addEventListener("click", async () => {
     currentTeams = result.teams.map((team) => ({ ...team, players: [...team.players] }));
     renderTeams();
     saveMatchButton.classList.remove("hidden");
+    mobileSaveMatchButton?.classList.remove("hidden");
+    if (window.matchMedia("(max-width: 860px)").matches) {
+      teamsResult.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
     showMessage("Times gerados com sucesso.");
   } catch (error) {
     currentTeams = [];
     teamsResult.innerHTML = "";
     saveMatchButton.classList.add("hidden");
+    mobileSaveMatchButton?.classList.add("hidden");
     showMessage(error.message, true);
   }
 });
 mobileGenerateTeamsButton?.addEventListener("click", () => generateTeamsButton.click());
+mobileSaveMatchButton?.addEventListener("click", () => saveMatchButton.click());
 mobileHistoryButton?.addEventListener("click", () => showView("history"));
 mobilePlayersBackButton?.addEventListener("click", () => showView("home"));
 mobileAddPlayerFab?.addEventListener("click", () => {
@@ -620,6 +627,7 @@ function renderTeams() {
   if (!currentTeams.length) {
     teamsResult.innerHTML = "";
     saveMatchButton.classList.add("hidden");
+    mobileSaveMatchButton?.classList.add("hidden");
     return;
   }
 
@@ -1030,6 +1038,7 @@ window.deletePlayer = async (playerId) => {
     currentTeams = [];
     teamsResult.innerHTML = "";
     saveMatchButton.classList.add("hidden");
+    mobileSaveMatchButton?.classList.add("hidden");
     showMessage("Jogador excluido.");
   } catch (error) {
     showMessage(error.message, true);
