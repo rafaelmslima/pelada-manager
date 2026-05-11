@@ -905,19 +905,25 @@ window.openShareMatch = async (matchId) => {
 function renderShareMatch(match) {
   const teamsHtml = match.teams
     .map(
-      (team) => `
+      (team, teamIndex) => `
         <article class="share-team ${team.is_team_of_the_week ? "team-week" : ""}">
           <header>
-            <h3>${escapeHtml(team.name)}</h3>
-            <span>${team.players.length} jogadores</span>
+            <div>
+              <span class="share-team-kicker">Time ${teamIndex + 1}</span>
+              <h3>${escapeHtml(team.name || `Time ${teamIndex + 1}`)}</h3>
+            </div>
+            <span class="share-team-count">${team.players.length} jogadores</span>
           </header>
           <ol>
             ${team.players
               .map(
-                (matchPlayer) => `
+                (matchPlayer, playerIndex) => `
                   <li>
-                    <strong>${escapeHtml(matchPlayer.player.name)}</strong>
-                    <span>${formatPosition(matchPlayer.player.position)}</span>
+                    <span class="share-player-number">${playerIndex + 1}</span>
+                    <div>
+                      <strong>${escapeHtml(matchPlayer.player.name)}</strong>
+                      <span>${formatPosition(matchPlayer.player.position)}</span>
+                    </div>
                   </li>
                 `,
               )
@@ -937,6 +943,7 @@ function renderShareMatch(match) {
           <h1>${escapeHtml(match.title)}</h1>
           <span>${formatDate(match.date)}</span>
         </div>
+        <div class="share-badge">${match.teams.length} times</div>
       </header>
       <div class="share-teams-grid">${teamsHtml}</div>
     </div>
