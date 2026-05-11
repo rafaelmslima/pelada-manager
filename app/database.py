@@ -30,6 +30,7 @@ def ensure_legacy_multitenant_columns(target_engine: Engine = engine) -> None:
         return
 
     required_by_table = {
+        "peladas": ["location", "match_time", "default_billing_type"],
         "players": ["pelada_id"],
         "matches": ["pelada_id"],
         "match_teams": ["pelada_id"],
@@ -44,7 +45,15 @@ def ensure_legacy_multitenant_columns(target_engine: Engine = engine) -> None:
             }
             for column in required_columns:
                 if column not in existing_columns:
-                    connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column} INTEGER"))
+                    if table_name == "peladas":
+                        defaults = {
+                            "location": "TEXT NOT NULL DEFAULT ''",
+                            "match_time": "TEXT NOT NULL DEFAULT '20:00'",
+                            "default_billing_type": "TEXT NOT NULL DEFAULT 'diarista'",
+                        }
+                        connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column} {defaults[column]}"))
+                    else:
+                        connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column} INTEGER"))
 
 
 def get_db() -> Generator[Session, None, None]:

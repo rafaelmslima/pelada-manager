@@ -42,6 +42,13 @@ const managementList = document.querySelector("#managementList");
 const profileModal = document.querySelector("#profileModal");
 const profileTitle = document.querySelector("#profileTitle");
 const profileContent = document.querySelector("#profileContent");
+const profileView = document.querySelector("#profileView");
+const peladaSettingsForm = document.querySelector("#peladaSettingsForm");
+const peladaNameInput = document.querySelector("#peladaNameInput");
+const peladaLocationInput = document.querySelector("#peladaLocationInput");
+const peladaTimeInput = document.querySelector("#peladaTimeInput");
+const peladaBillingTypeInput = document.querySelector("#peladaBillingTypeInput");
+const profileLogoutButton = document.querySelector("#profileLogoutButton");
 const mobileGenerateTeamsButton = document.querySelector("#mobileGenerateTeamsButton");
 const mobileHistoryButton = document.querySelector("#mobileHistoryButton");
 const mobileActivePlayers = document.querySelector("#mobileActivePlayers");
@@ -66,6 +73,7 @@ let collapsedMatchMonths = new Set();
 let hasInitializedMatchMonths = false;
 let mobilePlayersFilter = "all";
 let mobilePlayersQuery = "";
+let currentSession = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   initializeAuth();
@@ -87,7 +95,7 @@ homeNavButton.addEventListener("click", () => showView("home"));
 managementNavButton.addEventListener("click", () => showView("management"));
 historyNavButton.addEventListener("click", () => showView("history"));
 rankingsNavButton.addEventListener("click", () => showView("rankings"));
-profileNavButton?.addEventListener("click", logout);
+profileNavButton?.addEventListener("click", () => showView("profile"));
 shareNavButton.addEventListener("click", () => showView("share"));
 refreshManagementButton.addEventListener("click", loadPlayers);
 refreshHistoryButton.addEventListener("click", loadMatches);
@@ -168,6 +176,8 @@ mobileFilterTabs.forEach((button) => {
   });
 });
 mobilePlayerForm?.addEventListener("submit", submitMobilePlayer);
+peladaSettingsForm?.addEventListener("submit", savePeladaSettings);
+profileLogoutButton?.addEventListener("click", logout);
 
 saveMatchButton.addEventListener("click", async () => {
   if (!currentTeams.length) {
@@ -282,11 +292,13 @@ function showAuthView() {
 }
 
 function showAppView(me) {
+  currentSession = me;
   authView.classList.add("hidden");
   appContent.classList.remove("hidden");
   if (me?.pelada?.name && peladaHeader) {
     peladaHeader.textContent = me.pelada.name;
   }
+  syncPeladaSettings();
   showView("home");
 }
 
@@ -330,7 +342,63 @@ async function submitRegister(event) {
 
 async function logout() {
   await requestJson("/api/auth/logout", { method: "POST" });
+  currentSession = null;
   showAuthView();
+}
+
+function syncPeladaSettings() {
+  const pelada = currentSession?.pelada;
+  if (!pelada) return;
+
+  if (peladaNameInput) peladaNameInput.value = pelada.name || "";
+  if (peladaLocationInput) peladaLocationInput.value = pelada.location || "";
+  if (peladaTimeInput) peladaTimeInput.value = pelada.match_time || "20:00";
+  if (peladaBillingTypeInput) peladaBillingTypeInput.value = pelada.default_billing_type || "diarista";
+  const defaultBillingType = pelada.default_billing_type || "diarista";
+  const billingTypeInput = document.querySelector("#billingType");
+  const mobileBillingType = document.querySelector("#mobileBillingType");
+  if (billingTypeInput && !document.querySelector("#playerId")?.value) {
+    billingTypeInput.value = defaultBillingType;
+  }
+  if (mobileBillingType) {
+    mobileBillingType.value = defaultBillingType;
+  }
+  updatePeladaLabels();
+}
+
+function updatePeladaLabels() {
+  const pelada = currentSession?.pelada || {};
+  document.querySelectorAll("[data-pelada-location]").forEach((item) => {
+    item.textContent = pelada.location || "Nao informado";
+  });
+  document.querySelectorAll("[data-pelada-time]").forEach((item) => {
+    item.textContent = pelada.match_time || "20:00";
+  });
+  document.querySelectorAll("[data-pelada-billing]").forEach((item) => {
+    item.textContent = formatBillingType(pelada.default_billing_type || "diarista");
+  });
+}
+
+async function savePeladaSettings(event) {
+  event.preventDefault();
+  try {
+    const me = await requestJson("/api/auth/pelada", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: peladaNameInput.value,
+        location: peladaLocationInput.value,
+        match_time: peladaTimeInput.value || "20:00",
+        default_billing_type: peladaBillingTypeInput.value,
+      }),
+    });
+    currentSession = me;
+    if (peladaHeader) peladaHeader.textContent = me.pelada.name;
+    syncPeladaSettings();
+    showMessage("Configuracoes salvas.");
+  } catch (error) {
+    showMessage(error.message, true);
+  }
 }
 
 function renderPlayers() {
@@ -430,6 +498,7 @@ async function submitMobilePlayer(event) {
     });
     mobilePlayerForm.reset();
     document.querySelector("#mobileRating").value = 3;
+    document.querySelector("#mobileBillingType").value = currentSession?.pelada?.default_billing_type || "diarista";
     closeMobilePlayerModal();
     await loadPlayers();
     showMessage("Jogador cadastrado.");
@@ -1077,19 +1146,22 @@ function showView(view) {
   const isHistory = view === "history";
   const isRankings = view === "rankings";
   const isShare = view === "share";
+  const isProfile = view === "profile";
   const showMobilePlayers = isMobile && isManagement;
   heroSection?.classList.toggle("hidden", view !== "home");
-  homeView.classList.toggle("hidden", isManagement || isHistory || isRankings || isShare || showMobilePlayers);
+  homeView.classList.toggle("hidden", isManagement || isHistory || isRankings || isShare || isProfile || showMobilePlayers);
   managementView.classList.toggle("hidden", !(isManagement && !showMobilePlayers));
   mobilePlayersView?.classList.toggle("hidden", !showMobilePlayers);
   mobileHomeShell?.classList.toggle("hidden", !isMobile || view !== "home");
   historyView.classList.toggle("hidden", !isHistory);
   rankingsView.classList.toggle("hidden", !isRankings);
+  profileView?.classList.toggle("hidden", !isProfile);
   shareView.classList.toggle("hidden", !isShare);
   homeNavButton.classList.toggle("active", view === "home");
   managementNavButton.classList.toggle("active", isManagement);
   historyNavButton.classList.toggle("active", isHistory);
   rankingsNavButton.classList.toggle("active", isRankings);
+  profileNavButton?.classList.toggle("active", isProfile);
   shareNavButton.classList.toggle("active", isShare);
   if (isManagement) {
     if (showMobilePlayers) {
@@ -1104,6 +1176,9 @@ function showView(view) {
   if (isRankings) {
     loadRankings();
   }
+  if (isProfile) {
+    syncPeladaSettings();
+  }
 }
 
 function resetForm() {
@@ -1111,6 +1186,9 @@ function resetForm() {
   document.querySelector("#playerId").value = "";
   document.querySelector("#rating").value = 3;
   document.querySelector("#billingType").value = "diarista";
+  if (currentSession?.pelada?.default_billing_type) {
+    document.querySelector("#billingType").value = currentSession.pelada.default_billing_type;
+  }
   document.querySelector("#whatsapp").value = "";
   formTitle.textContent = "Novo jogador";
   cancelEditButton.classList.add("hidden");

@@ -6,8 +6,10 @@ from app.auth import (
     SESSION_COOKIE_NAME,
     clear_session,
     create_session,
+    get_current_pelada,
     get_current_user,
     login_user,
+    require_user,
     register_user,
     serialize_current_user,
 )
@@ -53,4 +55,20 @@ def logout(
 def me(current_user: models.User | None = Depends(get_current_user)):
     if current_user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sessao invalida ou expirada.")
+    return serialize_current_user(current_user)
+
+
+@router.put("/pelada", response_model=schemas.AuthMeResponse)
+def update_pelada(
+    payload: schemas.PeladaUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_user),
+):
+    pelada = get_current_pelada(current_user)
+    pelada.name = payload.name
+    pelada.location = payload.location
+    pelada.match_time = payload.match_time or "20:00"
+    pelada.default_billing_type = payload.default_billing_type
+    db.commit()
+    db.refresh(current_user)
     return serialize_current_user(current_user)

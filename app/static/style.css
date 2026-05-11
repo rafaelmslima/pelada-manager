@@ -181,6 +181,14 @@ input:focus, select:focus { outline: none; border-color: #32936c; box-shadow: 0 
 .auth-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
 .mobile-home-shell { display: none; }
 .mobile-players-view { display: none; }
+.profile-settings-panel {
+  max-width: 620px;
+  padding: 20px;
+}
+.profile-logout-button {
+  width: 100%;
+  margin-top: 14px;
+}
 
 @media (max-width: 1100px) {
   .workspace { grid-template-columns: 1fr; }
@@ -278,6 +286,12 @@ input:focus, select:focus { outline: none; border-color: #32936c; box-shadow: 0 
   .mobile-today-card dt { color: #5a7368; font-weight: 600; }
   .mobile-today-card dd { margin: 0; color: #1f3a32; font-weight: 700; }
   .mobile-today-card .secondary-button { margin-top: 10px; width: 100%; border-radius: 10px; }
+  .profile-settings-panel {
+    max-width: none;
+    padding: 18px;
+    border-radius: 16px;
+    box-shadow: none;
+  }
   .mobile-players-view {
     display: grid;
     gap: 10px;

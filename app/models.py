@@ -39,6 +39,9 @@ class Pelada(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
+    location: Mapped[str] = mapped_column(String(160), default="", nullable=False)
+    match_time: Mapped[str] = mapped_column(String(20), default="20:00", nullable=False)
+    default_billing_type: Mapped[str] = mapped_column(String(20), default="diarista", nullable=False)
     owner_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 

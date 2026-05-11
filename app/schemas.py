@@ -49,7 +49,22 @@ class PeladaRead(BaseModel):
 
     id: int
     name: str
+    location: str
+    match_time: str
+    default_billing_type: BillingType
     created_at: datetime
+
+
+class PeladaUpdate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=120)
+    location: str = Field(default="", max_length=160)
+    match_time: str = Field(default="20:00", max_length=20)
+    default_billing_type: BillingType = "diarista"
+
+    @field_validator("name", "location", "match_time")
+    @classmethod
+    def strip_text(cls, value: str) -> str:
+        return value.strip()
 
 
 class AuthMeResponse(BaseModel):

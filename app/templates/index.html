@@ -75,9 +75,9 @@
               <h3>Pelada de hoje</h3>
               <dl>
                 <div><dt>Jogadores confirmados</dt><dd><span id="mobileActivePlayers">0</span> / <span id="mobileTotalPlayers">0</span></dd></div>
-                <div><dt>Horario</dt><dd>20:00</dd></div>
-                <div><dt>Local</dt><dd>Arena Society</dd></div>
-                <div><dt>Tipo de cobranca</dt><dd>Diarista</dd></div>
+                <div><dt>Horario</dt><dd data-pelada-time>20:00</dd></div>
+                <div><dt>Local</dt><dd data-pelada-location>Nao informado</dd></div>
+                <div><dt>Tipo de cobranca</dt><dd data-pelada-billing>Diarista</dd></div>
               </dl>
               <button class="secondary-button" id="mobileHistoryButton" type="button">Ver historico</button>
             </article>
@@ -203,6 +203,30 @@
               <div class="panel-heading"><div><h2>Rankings</h2><p>Artilheiros e assistencias pelo historico.</p></div><button class="ghost-button" id="refreshRankingsButton" type="button">Atualizar ranking</button></div>
               <div id="rankingsEmptyState" class="empty-state hidden">Ainda nao ha estatisticas suficientes para montar o ranking.</div>
               <div id="rankingsContent" class="rankings-content"></div>
+            </div>
+          </section>
+
+          <section id="profileView" class="view-panel hidden">
+            <div class="panel profile-settings-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Perfil da pelada</h2>
+                  <p>Configure as informacoes que aparecem na tela inicial.</p>
+                </div>
+              </div>
+              <form id="peladaSettingsForm" class="player-form">
+                <label>Nome da pelada<input id="peladaNameInput" maxlength="120" required /></label>
+                <label>Local<input id="peladaLocationInput" maxlength="160" placeholder="Ex: Arena Society" /></label>
+                <label>Horario<input id="peladaTimeInput" maxlength="20" placeholder="Ex: 20:00" /></label>
+                <label>Tipo de cobranca
+                  <select id="peladaBillingTypeInput">
+                    <option value="diarista">Diarista</option>
+                    <option value="mensalista">Mensalista</option>
+                  </select>
+                </label>
+                <button class="primary-button" type="submit">Salvar configuracoes</button>
+              </form>
+              <button class="danger-button profile-logout-button" id="profileLogoutButton" type="button">Sair da conta</button>
             </div>
           </section>
 
