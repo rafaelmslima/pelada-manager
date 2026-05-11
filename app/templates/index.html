@@ -8,7 +8,7 @@
     <link rel="manifest" href="/static/manifest.json" />
     <link rel="icon" type="image/png" href="/static/pelapan-logo.png" />
     <link rel="apple-touch-icon" href="/static/pelapan-logo.png" />
-    <link rel="stylesheet" href="/static/style.css?v=20260511-polish" />
+    <link rel="stylesheet" href="/static/style.css?v=20260511-mobile-dashboard" />
   </head>
   <body>
     <main class="app-shell">
@@ -41,11 +41,26 @@
           </div>
 
           <nav class="top-nav" aria-label="Navegacao principal">
-            <button class="nav-button active" id="homeNavButton" type="button"><span class="nav-icon home-icon"></span><span class="nav-label">Inicio</span><span class="nav-desktop-label">Pelada de hoje</span></button>
-            <button class="nav-button" id="managementNavButton" type="button"><span class="nav-icon players-icon"></span><span class="nav-label">Jogadores</span><span class="nav-desktop-label">Gestao</span></button>
-            <button class="nav-button" id="historyNavButton" type="button"><span class="nav-icon history-icon"></span><span class="nav-label">Historico</span><span class="nav-desktop-label">Historico</span></button>
-            <button class="nav-button" id="rankingsNavButton" type="button"><span class="nav-icon ranking-icon"></span><span class="nav-label">Ranking</span><span class="nav-desktop-label">Rankings</span></button>
-            <button class="nav-button profile-nav-button" id="profileNavButton" type="button"><span class="nav-icon profile-icon"></span><span class="nav-label">Perfil</span><span class="nav-desktop-label">Perfil</span></button>
+            <button class="nav-button active" id="homeNavButton" type="button">
+              <span class="nav-icon home-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M9.5 20v-5h5v5"/></svg></span>
+              <span class="nav-label">Inicio</span><span class="nav-desktop-label">Pelada de hoje</span>
+            </button>
+            <button class="nav-button" id="managementNavButton" type="button">
+              <span class="nav-icon players-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M17 10a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M14.5 14.5A5 5 0 0 1 20.5 20"/></svg></span>
+              <span class="nav-label">Jogadores</span><span class="nav-desktop-label">Gestao</span>
+            </button>
+            <button class="nav-button" id="historyNavButton" type="button">
+              <span class="nav-icon history-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3v4"/><path d="M17 3v4"/><path d="M4.5 8h15"/><path d="M6 5h12a2 2 0 0 1 2 2v11.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/><path d="M8 12h2"/><path d="M12 12h2"/><path d="M16 12h1"/><path d="M8 16h2"/><path d="M12 16h2"/></svg></span>
+              <span class="nav-label">Historico</span><span class="nav-desktop-label">Historico</span>
+            </button>
+            <button class="nav-button" id="rankingsNavButton" type="button">
+              <span class="nav-icon ranking-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 7H4a3 3 0 0 0 3 3"/><path d="M17 7h3a3 3 0 0 1-3 3"/></svg></span>
+              <span class="nav-label">Ranking</span><span class="nav-desktop-label">Rankings</span>
+            </button>
+            <button class="nav-button profile-nav-button" id="profileNavButton" type="button">
+              <span class="nav-icon profile-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg></span>
+              <span class="nav-label">Perfil</span><span class="nav-desktop-label">Perfil</span>
+            </button>
             <button class="nav-button hidden" id="shareNavButton" type="button">Times para print</button>
           </nav>
 
@@ -54,33 +69,55 @@
 
         <section class="main-area">
           <section class="hero">
+            <img class="mobile-hero-logo" src="/static/pelapan-logo.png" alt="Logo Pelapan" />
             <div class="hero-copy-block">
               <p class="eyebrow">Bem-vindo</p>
               <h1>Pelada Manager</h1>
               <p class="hero-copy">Cadastre jogadores, confirme presenca e gere times equilibrados em poucos cliques.</p>
             </div>
+            <button class="mobile-notification-button" type="button" aria-label="Notificacoes">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"/><path d="M10 21h4"/></svg>
+            </button>
             <div class="hero-stats">
-              <article><span id="totalPlayers">0</span><small>Total de jogadores</small></article>
-              <article><span id="activePlayers">0</span><small>Confirmados</small></article>
-              <article><span>0</span><small>Times hoje</small></article>
-              <article><span>R$ 0</span><small>Arrecadacao</small></article>
+              <article>
+                <span class="stat-icon players-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M17 10a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M14.5 14.5A5 5 0 0 1 20.5 20"/></svg></span>
+                <span id="activePlayers">0</span><small>Confirmados</small><em>Para hoje</em>
+              </article>
+              <article>
+                <span class="stat-icon players-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M17 10a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M14.5 14.5A5 5 0 0 1 20.5 20"/></svg></span>
+                <span id="totalPlayers">0</span><small>Total de jogadores</small><em>Cadastrados</em>
+              </article>
+              <article>
+                <span class="stat-icon teams-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16v10H4z"/><path d="M12 7v10"/><path d="M8 12h1"/><path d="M15 12h1"/><path d="M6 4v3"/><path d="M18 17v3"/></svg></span>
+                <span id="generatedTeamsCount">0</span><small>Times gerados</small><em>Hoje</em>
+              </article>
+              <article>
+                <span class="stat-icon money-stat-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z"/><path d="M15 8.5c-.7-.7-1.8-1-3-1-1.6 0-2.7.7-2.7 1.8 0 2.8 5.4 1.1 5.4 4.2 0 1.1-1.1 2-2.8 2-1.2 0-2.5-.4-3.2-1.2"/><path d="M12 6v12"/></svg></span>
+                <span id="revenueEstimate">R$ 0</span><small>Arrecadacao est.</small><em>Baseado nos confirmados</em>
+              </article>
             </div>
           </section>
 
           <div id="message" class="message hidden"></div>
 
           <section class="mobile-home-shell">
-            <button class="primary-button mobile-generate-button" id="mobileGenerateTeamsButton" type="button">Gerar times</button>
+            <button class="primary-button mobile-generate-button" id="mobileGenerateTeamsButton" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
+              Gerar times
+            </button>
             <button class="primary-button mobile-save-match-button hidden" id="mobileSaveMatchButton" type="button">Salvar pelada</button>
             <article class="panel mobile-today-card">
-              <h3>Pelada de hoje</h3>
+              <h3><span class="today-title-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3v4"/><path d="M17 3v4"/><path d="M4.5 8h15"/><path d="M6 5h12a2 2 0 0 1 2 2v11.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></svg></span> Pelada de hoje</h3>
               <dl>
                 <div><dt>Jogadores confirmados</dt><dd><span id="mobileActivePlayers">0</span> / <span id="mobileTotalPlayers">0</span></dd></div>
                 <div><dt>Horario</dt><dd data-pelada-time>20:00</dd></div>
                 <div><dt>Local</dt><dd data-pelada-location>Nao informado</dd></div>
                 <div><dt>Tipo de cobranca</dt><dd data-pelada-billing>Diarista</dd></div>
               </dl>
-              <button class="secondary-button" id="mobileHistoryButton" type="button">Ver historico</button>
+              <button class="secondary-button" id="mobileHistoryButton" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 13.6-5.7"/><path d="M18 3v4h-4"/><path d="M20 12a8 8 0 0 1-13.6 5.7"/><path d="M6 21v-4h4"/></svg>
+                Ver historico
+              </button>
             </article>
           </section>
 
@@ -243,6 +280,6 @@
         <section class="modal-card"><header class="modal-header"><div><p class="eyebrow">Perfil do jogador</p><h2 id="profileTitle">Jogador</h2></div><button class="ghost-button" type="button" onclick="closeProfileModal()">Fechar</button></header><div id="profileContent"></div></section>
       </div>
     </main>
-    <script src="/static/script.js?v=20260511-polish"></script>
+    <script src="/static/script.js?v=20260511-mobile-dashboard"></script>
   </body>
 </html>

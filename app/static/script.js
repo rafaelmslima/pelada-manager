@@ -16,6 +16,8 @@ const teamsResult = document.querySelector("#teamsResult");
 const message = document.querySelector("#message");
 const totalPlayers = document.querySelector("#totalPlayers");
 const activePlayers = document.querySelector("#activePlayers");
+const generatedTeamsCount = document.querySelector("#generatedTeamsCount");
+const revenueEstimate = document.querySelector("#revenueEstimate");
 const homeView = document.querySelector("#homeView");
 const managementView = document.querySelector("#managementView");
 const historyView = document.querySelector("#historyView");
@@ -158,6 +160,7 @@ generateTeamsButton.addEventListener("click", async () => {
   } catch (error) {
     currentTeams = [];
     teamsResult.innerHTML = "";
+    updateDashboardMetrics();
     saveMatchButton.classList.add("hidden");
     mobileSaveMatchButton?.classList.add("hidden");
     showMessage(error.message, true);
@@ -409,14 +412,7 @@ async function savePeladaSettings(event) {
 }
 
 function renderPlayers() {
-  totalPlayers.textContent = players.length;
-  activePlayers.textContent = players.filter((player) => player.is_active).length;
-  if (mobileTotalPlayers) {
-    mobileTotalPlayers.textContent = players.length;
-  }
-  if (mobileActivePlayers) {
-    mobileActivePlayers.textContent = players.filter((player) => player.is_active).length;
-  }
+  updateDashboardMetrics();
   renderMobilePlayers();
 
   if (!players.length) {
@@ -626,6 +622,7 @@ function renderWhatsAppLink(whatsapp) {
 function renderTeams() {
   if (!currentTeams.length) {
     teamsResult.innerHTML = "";
+    updateDashboardMetrics();
     saveMatchButton.classList.add("hidden");
     mobileSaveMatchButton?.classList.add("hidden");
     return;
@@ -679,6 +676,17 @@ function renderTeams() {
     .join("");
 
   teamsResult.innerHTML = `<div class="teams-grid">${teamsHtml}</div>`;
+  updateDashboardMetrics();
+}
+
+function updateDashboardMetrics() {
+  const activeCount = players.filter((player) => player.is_active).length;
+  if (totalPlayers) totalPlayers.textContent = players.length;
+  if (activePlayers) activePlayers.textContent = activeCount;
+  if (mobileTotalPlayers) mobileTotalPlayers.textContent = players.length;
+  if (mobileActivePlayers) mobileActivePlayers.textContent = activeCount;
+  if (generatedTeamsCount) generatedTeamsCount.textContent = currentTeams.length;
+  if (revenueEstimate) revenueEstimate.textContent = "R$ 0";
 }
 
 function renderMatches() {
@@ -1044,6 +1052,7 @@ window.deletePlayer = async (playerId) => {
     await loadPlayers();
     currentTeams = [];
     teamsResult.innerHTML = "";
+    updateDashboardMetrics();
     saveMatchButton.classList.add("hidden");
     mobileSaveMatchButton?.classList.add("hidden");
     showMessage("Jogador excluido.");
