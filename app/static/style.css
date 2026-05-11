@@ -206,17 +206,18 @@ input:focus, select:focus { outline: none; border-color: #32936c; box-shadow: 0 
 
   .top-nav {
     position: fixed;
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
-    z-index: 32;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
     background: #ffffff;
     border: 1px solid var(--line);
-    border-radius: 18px;
-    padding: 8px;
+    border-bottom: 0;
+    border-radius: 22px 22px 0 0;
+    padding: 9px 14px calc(9px + env(safe-area-inset-bottom));
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 6px;
-    box-shadow: 0 12px 28px rgba(17, 46, 36, 0.2);
+    gap: 8px;
+    box-shadow: 0 -12px 28px rgba(17, 46, 36, 0.16);
   }
   .top-nav .nav-button {
     min-height: 56px;
@@ -240,7 +241,7 @@ input:focus, select:focus { outline: none; border-color: #32936c; box-shadow: 0 
   #shareNavButton { display: none !important; }
 
   .main-area {
-    padding: 16px 14px 98px;
+    padding: 16px 14px calc(120px + env(safe-area-inset-bottom));
     border-radius: 0;
     min-height: 100vh;
   }
@@ -357,7 +358,7 @@ input:focus, select:focus { outline: none; border-color: #32936c; box-shadow: 0 
     position: fixed;
     left: 50%;
     transform: translateX(-50%);
-    bottom: 78px;
+    bottom: calc(92px + env(safe-area-inset-bottom));
     width: 52px;
     height: 52px;
     border-radius: 999px;
@@ -365,12 +366,12 @@ input:focus, select:focus { outline: none; border-color: #32936c; box-shadow: 0 
     color: #fff;
     font-size: 1.5rem;
     box-shadow: 0 10px 20px rgba(9, 63, 45, 0.35);
-    z-index: 33;
+    z-index: 61;
   }
   .mobile-player-modal {
     position: fixed;
     inset: 0;
-    z-index: 45;
+    z-index: 90;
     display: grid;
     align-items: end;
   }
@@ -378,8 +379,8 @@ input:focus, select:focus { outline: none; border-color: #32936c; box-shadow: 0 
     position: relative;
     border-radius: 18px 18px 0 0;
     background: #fff;
-    padding: 14px;
-    max-height: 80vh;
+    padding: 18px 14px calc(22px + env(safe-area-inset-bottom));
+    max-height: calc(100dvh - 58px);
     overflow-y: auto;
   }
   .mobile-player-sheet header {
@@ -394,12 +395,16 @@ input:focus, select:focus { outline: none; border-color: #32936c; box-shadow: 0 
   .player-row, .match-row, .generated-player, .stats-player, .details-heading, .share-toolbar { grid-template-columns: 1fr; }
   .hero-stats { grid-template-columns: 1fr 1fr; }
   .row-actions button { flex: 1; min-height: 42px; }
+  body.mobile-sheet-open .top-nav,
+  body.mobile-sheet-open .mobile-add-fab {
+    display: none;
+  }
 }
 
 @media (max-width: 560px) {
   h1 { font-size: 2.25rem; }
   .hero-stats { grid-template-columns: 1fr 1fr; }
-  .main-area { padding-bottom: 80px; }
+  .main-area { padding-bottom: calc(120px + env(safe-area-inset-bottom)); }
   .top-nav { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 

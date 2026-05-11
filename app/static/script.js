@@ -152,7 +152,10 @@ generateTeamsButton.addEventListener("click", async () => {
 mobileGenerateTeamsButton?.addEventListener("click", () => generateTeamsButton.click());
 mobileHistoryButton?.addEventListener("click", () => showView("history"));
 mobilePlayersBackButton?.addEventListener("click", () => showView("home"));
-mobileAddPlayerFab?.addEventListener("click", () => mobilePlayerModal?.classList.remove("hidden"));
+mobileAddPlayerFab?.addEventListener("click", () => {
+  mobilePlayerModal?.classList.remove("hidden");
+  document.body.classList.add("mobile-sheet-open");
+});
 mobilePlayersSearch?.addEventListener("input", (event) => {
   mobilePlayersQuery = event.target.value || "";
   renderMobilePlayers();
@@ -437,6 +440,7 @@ async function submitMobilePlayer(event) {
 
 window.closeMobilePlayerModal = () => {
   mobilePlayerModal?.classList.add("hidden");
+  document.body.classList.remove("mobile-sheet-open");
 };
 
 function renderManagement() {
