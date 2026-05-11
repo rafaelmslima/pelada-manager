@@ -46,6 +46,16 @@ const mobileGenerateTeamsButton = document.querySelector("#mobileGenerateTeamsBu
 const mobileHistoryButton = document.querySelector("#mobileHistoryButton");
 const mobileActivePlayers = document.querySelector("#mobileActivePlayers");
 const mobileTotalPlayers = document.querySelector("#mobileTotalPlayers");
+const mobilePlayersView = document.querySelector("#mobilePlayersView");
+const mobilePlayersList = document.querySelector("#mobilePlayersList");
+const mobilePlayersCount = document.querySelector("#mobilePlayersCount");
+const mobilePlayersSearch = document.querySelector("#mobilePlayersSearch");
+const mobileFilterTabs = document.querySelectorAll(".mobile-filter-tab");
+const mobilePlayersBackButton = document.querySelector("#mobilePlayersBackButton");
+const mobileAddPlayerFab = document.querySelector("#mobileAddPlayerFab");
+const mobilePlayerModal = document.querySelector("#mobilePlayerModal");
+const mobilePlayerForm = document.querySelector("#mobilePlayerForm");
+const mobileHomeShell = document.querySelector(".mobile-home-shell");
 
 let players = [];
 let matches = [];
@@ -53,6 +63,8 @@ let rankings = null;
 let currentTeams = [];
 let collapsedMatchMonths = new Set();
 let hasInitializedMatchMonths = false;
+let mobilePlayersFilter = "all";
+let mobilePlayersQuery = "";
 
 document.addEventListener("DOMContentLoaded", () => {
   initializeAuth();
@@ -138,6 +150,20 @@ generateTeamsButton.addEventListener("click", async () => {
 });
 mobileGenerateTeamsButton?.addEventListener("click", () => generateTeamsButton.click());
 mobileHistoryButton?.addEventListener("click", () => showView("history"));
+mobilePlayersBackButton?.addEventListener("click", () => showView("home"));
+mobileAddPlayerFab?.addEventListener("click", () => mobilePlayerModal?.classList.remove("hidden"));
+mobilePlayersSearch?.addEventListener("input", (event) => {
+  mobilePlayersQuery = event.target.value || "";
+  renderMobilePlayers();
+});
+mobileFilterTabs.forEach((button) => {
+  button.addEventListener("click", () => {
+    mobilePlayersFilter = button.dataset.filter || "all";
+    mobileFilterTabs.forEach((item) => item.classList.toggle("active", item === button));
+    renderMobilePlayers();
+  });
+});
+mobilePlayerForm?.addEventListener("submit", submitMobilePlayer);
 
 saveMatchButton.addEventListener("click", async () => {
   if (!currentTeams.length) {
@@ -311,6 +337,7 @@ function renderPlayers() {
   if (mobileActivePlayers) {
     mobileActivePlayers.textContent = players.filter((player) => player.is_active).length;
   }
+  renderMobilePlayers();
 
   if (!players.length) {
     playersList.innerHTML = '<div class="empty-state">Nenhum jogador cadastrado ainda.</div>';
@@ -341,6 +368,74 @@ function renderPlayers() {
     )
     .join("");
 }
+
+function renderMobilePlayers() {
+  if (!mobilePlayersList || !mobilePlayersCount) return;
+  mobilePlayersCount.textContent = players.length;
+
+  const query = mobilePlayersQuery.trim().toLowerCase();
+  const filtered = players.filter((player) => {
+    const byFilter =
+      mobilePlayersFilter === "all" ||
+      (mobilePlayersFilter === "confirmed" && player.is_active) ||
+      (mobilePlayersFilter === "pending" && !player.is_active);
+    const bySearch = !query || player.name.toLowerCase().includes(query);
+    return byFilter && bySearch;
+  });
+
+  if (!filtered.length) {
+    mobilePlayersList.innerHTML = '<div class="empty-state">Nenhum jogador encontrado.</div>';
+    return;
+  }
+
+  mobilePlayersList.innerHTML = filtered
+    .map(
+      (player) => `
+      <article class="mobile-player-row">
+        <div class="mobile-player-avatar">${escapeHtml(player.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase())}</div>
+        <div class="mobile-player-main">
+          <strong>${escapeHtml(player.name)}</strong>
+          <span>${formatPosition(player.position)}</span>
+          <small>⭐ ${formatRating(player.rating)}</small>
+        </div>
+        <button class="mobile-player-check ${player.is_active ? "checked" : ""}" type="button" onclick="togglePlayer(${player.id})">${player.is_active ? "✓" : ""}</button>
+      </article>
+    `,
+    )
+    .join("");
+}
+
+async function submitMobilePlayer(event) {
+  event.preventDefault();
+  const payload = {
+    name: document.querySelector("#mobileName").value,
+    position: document.querySelector("#mobilePosition").value,
+    rating: Number(document.querySelector("#mobileRating").value),
+    billing_type: document.querySelector("#mobileBillingType").value,
+    has_paid: false,
+    whatsapp: document.querySelector("#mobileWhatsapp").value,
+    is_active: document.querySelector("#mobileIsActive").checked,
+  };
+
+  try {
+    await requestJson("/api/players", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    mobilePlayerForm.reset();
+    document.querySelector("#mobileRating").value = 3;
+    closeMobilePlayerModal();
+    await loadPlayers();
+    showMessage("Jogador cadastrado.");
+  } catch (error) {
+    showMessage(error.message, true);
+  }
+}
+
+window.closeMobilePlayerModal = () => {
+  mobilePlayerModal?.classList.add("hidden");
+};
 
 function renderManagement() {
   if (!managementSummary || !managementList) {
@@ -971,12 +1066,16 @@ function profileMetric(label, value) {
 }
 
 function showView(view) {
+  const isMobile = window.matchMedia("(max-width: 860px)").matches;
   const isManagement = view === "management";
   const isHistory = view === "history";
   const isRankings = view === "rankings";
   const isShare = view === "share";
-  homeView.classList.toggle("hidden", isManagement || isHistory || isRankings || isShare);
-  managementView.classList.toggle("hidden", !isManagement);
+  const showMobilePlayers = isMobile && isManagement;
+  homeView.classList.toggle("hidden", isManagement || isHistory || isRankings || isShare || showMobilePlayers);
+  managementView.classList.toggle("hidden", !(isManagement && !showMobilePlayers));
+  mobilePlayersView?.classList.toggle("hidden", !showMobilePlayers);
+  mobileHomeShell?.classList.toggle("hidden", !isMobile || view !== "home");
   historyView.classList.toggle("hidden", !isHistory);
   rankingsView.classList.toggle("hidden", !isRankings);
   shareView.classList.toggle("hidden", !isShare);
@@ -986,7 +1085,11 @@ function showView(view) {
   rankingsNavButton.classList.toggle("active", isRankings);
   shareNavButton.classList.toggle("active", isShare);
   if (isManagement) {
-    renderManagement();
+    if (showMobilePlayers) {
+      renderMobilePlayers();
+    } else {
+      renderManagement();
+    }
   }
   if (isHistory) {
     loadMatches();
