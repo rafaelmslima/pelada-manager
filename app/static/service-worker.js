@@ -1,8 +1,8 @@
-const CACHE_NAME = "pelada-manager-v2-mobile-dashboard";
+const CACHE_NAME = "pelada-manager-v3-mobile-players";
 const CORE_ASSETS = [
   "/",
-  "/static/style.css?v=20260511-mobile-dashboard",
-  "/static/script.js?v=20260511-mobile-dashboard",
+  "/static/style.css?v=20260511-mobile-players",
+  "/static/script.js?v=20260511-mobile-players",
   "/static/pelapan-logo.png",
   "/static/manifest.json",
 ];

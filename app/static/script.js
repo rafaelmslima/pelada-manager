@@ -471,10 +471,17 @@ function renderMobilePlayers() {
         <div class="mobile-player-avatar">${escapeHtml(player.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase())}</div>
         <div class="mobile-player-main">
           <strong>${escapeHtml(player.name)}</strong>
-          <span>${formatPosition(player.position)}</span>
-          <small>⭐ ${formatRating(player.rating)}</small>
+          <div class="mobile-player-meta">
+            <span class="mobile-position-chip">${formatPosition(player.position)}</span>
+            <span class="mobile-rating">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z"/></svg>
+              ${formatRating(player.rating)}
+            </span>
+          </div>
         </div>
-        <button class="mobile-player-check ${player.is_active ? "checked" : ""}" type="button" onclick="togglePlayer(${player.id})">${player.is_active ? "✓" : ""}</button>
+        <button class="mobile-player-check ${player.is_active ? "checked" : ""}" type="button" onclick="togglePlayer(${player.id})" aria-label="${player.is_active ? "Remover confirmacao" : "Confirmar jogador"} ${escapeHtml(player.name)}">
+          ${player.is_active ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4 10-10"/></svg>' : ""}
+        </button>
       </article>
     `,
     )
