@@ -43,7 +43,8 @@ button { cursor: pointer; border: 0; }
 .brand-block { text-align: center; }
 .app-logo { width: 130px; height: 130px; object-fit: cover; border-radius: 16px; border: 2px solid rgba(255,255,255,0.2); }
 .brand-block h2 { font-size: 2.2rem; margin: 14px 0 8px; font-family: Georgia, "Times New Roman", serif; }
-.brand-block p { margin: 0; color: #cde4d8; line-height: 1.45; }
+.brand-block h2 { color: #ffffff; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.22); }
+.brand-block p { margin: 0; color: #e6f4ed; line-height: 1.45; }
 
 .top-nav { display: grid; gap: 8px; align-content: start; }
 .nav-button {
@@ -56,6 +57,9 @@ button { cursor: pointer; border: 0; }
   color: #e9f6ef;
   border: 1px solid transparent;
 }
+.profile-nav-button { display: none; }
+.nav-icon, .nav-label { display: none; }
+.nav-desktop-label { display: inline; }
 .nav-button.active { background: rgba(58, 143, 103, 0.45); border-color: rgba(255,255,255,0.2); }
 .nav-button.logout { margin-top: auto; border-color: rgba(255,255,255,0.15); }
 
@@ -170,6 +174,7 @@ input:focus, select:focus { outline: none; border-color: #32936c; box-shadow: 0 
 
 .auth-panel { max-width: 520px; margin: 50px auto; padding: 18px; }
 .auth-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+.mobile-home-shell { display: none; }
 
 @media (max-width: 1100px) {
   .workspace { grid-template-columns: 1fr; }
@@ -208,14 +213,57 @@ input:focus, select:focus { outline: none; border-color: #32936c; box-shadow: 0 
     padding: 7px 4px;
     border-radius: 12px;
     text-align: center;
-    font-size: 0.73rem;
+    font-size: 0.62rem;
+    line-height: 1.1;
     background: #f7faf8;
     color: #4c655c;
+    display: grid;
+    place-items: center;
+    gap: 4px;
   }
+  .nav-icon, .nav-label { display: block; }
+  .nav-desktop-label { display: none; }
+  .nav-icon { font-size: 1rem; line-height: 1; }
   .top-nav .nav-button.active { background: #0a6a4c; color: #fff; }
+  .top-nav .profile-nav-button { display: grid; }
   #logoutButton { display: none; }
+  #shareNavButton { display: none !important; }
 
   .main-area { padding: 14px; border-radius: 18px; }
+  .hero {
+    background: linear-gradient(180deg, #06573e, #044534);
+    border-radius: 20px;
+    padding: 14px;
+    color: #fff;
+    margin-bottom: 10px;
+  }
+  .hero .eyebrow { color: #d6efe2; margin-bottom: 4px; font-size: 0.7rem; }
+  .hero h1 { color: #fff; font-size: 2rem; margin-bottom: 6px; }
+  .hero-copy { color: #d8eee4; font-size: 0.88rem; }
+  .hero-stats {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .hero-stats article {
+    border-radius: 14px;
+    padding: 10px;
+    box-shadow: none;
+  }
+  .hero-stats span { font-size: 1.7rem; }
+  .hero-stats small { font-size: 0.74rem; }
+  .mobile-home-shell { display: grid; gap: 10px; margin: 0 0 10px; }
+  .mobile-generate-button { width: 100%; min-height: 48px; border-radius: 12px; }
+  .mobile-today-card { padding: 14px; border-radius: 16px; box-shadow: none; }
+  .mobile-today-card h3 { margin: 0 0 10px; color: #0f533e; }
+  .mobile-today-card dl { margin: 0; display: grid; gap: 8px; }
+  .mobile-today-card dl div { display: flex; justify-content: space-between; gap: 8px; font-size: 0.9rem; }
+  .mobile-today-card dt { color: #5a7368; font-weight: 600; }
+  .mobile-today-card dd { margin: 0; color: #1f3a32; font-weight: 700; }
+  .mobile-today-card .secondary-button { margin-top: 10px; width: 100%; border-radius: 10px; }
+  #homeView aside.panel,
+  #homeView .list-panel,
+  #homeView #teamsResult { display: none; }
   .player-row, .match-row, .generated-player, .stats-player, .details-heading, .share-toolbar { grid-template-columns: 1fr; }
   .hero-stats { grid-template-columns: 1fr 1fr; }
   .row-actions button { flex: 1; min-height: 42px; }
@@ -223,10 +271,9 @@ input:focus, select:focus { outline: none; border-color: #32936c; box-shadow: 0 
 
 @media (max-width: 560px) {
   h1 { font-size: 2.25rem; }
-  .hero-stats { grid-template-columns: 1fr; }
+  .hero-stats { grid-template-columns: 1fr 1fr; }
   .main-area { padding-bottom: 80px; }
-  .top-nav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  #shareNavButton { display: none !important; }
+  .top-nav { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 
 @media print {

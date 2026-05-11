@@ -7,7 +7,7 @@ import secrets
 from datetime import datetime
 
 from fastapi import Cookie, Depends, HTTPException, Response, status
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -107,8 +107,11 @@ def register_user(db: Session, payload: schemas.AuthRegisterRequest) -> models.U
     db.flush()
 
     pelada_name = payload.pelada_name.strip() if payload.pelada_name else f"Pelada de {payload.name.strip()}"
-    db.add(models.Pelada(name=pelada_name, owner_user_id=user.id))
+    pelada = models.Pelada(name=pelada_name, owner_user_id=user.id)
+    db.add(pelada)
     db.commit()
+    db.refresh(pelada)
+    _backfill_legacy_rows_without_pelada(db, pelada.id)
     db.refresh(user)
     return user
 
@@ -127,3 +130,12 @@ def serialize_current_user(user: models.User) -> schemas.AuthMeResponse:
         pelada=schemas.PeladaRead.model_validate(pelada),
         server_time=datetime.utcnow(),
     )
+
+
+def _backfill_legacy_rows_without_pelada(db: Session, pelada_id: int) -> None:
+    # Legacy SQLite databases may have rows created before multi-tenant columns existed.
+    db.execute(text("UPDATE players SET pelada_id = :pelada_id WHERE pelada_id IS NULL"), {"pelada_id": pelada_id})
+    db.execute(text("UPDATE matches SET pelada_id = :pelada_id WHERE pelada_id IS NULL"), {"pelada_id": pelada_id})
+    db.execute(text("UPDATE match_teams SET pelada_id = :pelada_id WHERE pelada_id IS NULL"), {"pelada_id": pelada_id})
+    db.execute(text("UPDATE match_players SET pelada_id = :pelada_id WHERE pelada_id IS NULL"), {"pelada_id": pelada_id})
+    db.commit()

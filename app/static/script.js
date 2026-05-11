@@ -25,6 +25,7 @@ const homeNavButton = document.querySelector("#homeNavButton");
 const managementNavButton = document.querySelector("#managementNavButton");
 const historyNavButton = document.querySelector("#historyNavButton");
 const rankingsNavButton = document.querySelector("#rankingsNavButton");
+const profileNavButton = document.querySelector("#profileNavButton");
 const shareNavButton = document.querySelector("#shareNavButton");
 const refreshManagementButton = document.querySelector("#refreshManagementButton");
 const refreshHistoryButton = document.querySelector("#refreshHistoryButton");
@@ -41,6 +42,10 @@ const managementList = document.querySelector("#managementList");
 const profileModal = document.querySelector("#profileModal");
 const profileTitle = document.querySelector("#profileTitle");
 const profileContent = document.querySelector("#profileContent");
+const mobileGenerateTeamsButton = document.querySelector("#mobileGenerateTeamsButton");
+const mobileHistoryButton = document.querySelector("#mobileHistoryButton");
+const mobileActivePlayers = document.querySelector("#mobileActivePlayers");
+const mobileTotalPlayers = document.querySelector("#mobileTotalPlayers");
 
 let players = [];
 let matches = [];
@@ -69,6 +74,7 @@ homeNavButton.addEventListener("click", () => showView("home"));
 managementNavButton.addEventListener("click", () => showView("management"));
 historyNavButton.addEventListener("click", () => showView("history"));
 rankingsNavButton.addEventListener("click", () => showView("rankings"));
+profileNavButton?.addEventListener("click", logout);
 shareNavButton.addEventListener("click", () => showView("share"));
 refreshManagementButton.addEventListener("click", loadPlayers);
 refreshHistoryButton.addEventListener("click", loadMatches);
@@ -130,6 +136,8 @@ generateTeamsButton.addEventListener("click", async () => {
     showMessage(error.message, true);
   }
 });
+mobileGenerateTeamsButton?.addEventListener("click", () => generateTeamsButton.click());
+mobileHistoryButton?.addEventListener("click", () => showView("history"));
 
 saveMatchButton.addEventListener("click", async () => {
   if (!currentTeams.length) {
@@ -297,6 +305,12 @@ async function logout() {
 function renderPlayers() {
   totalPlayers.textContent = players.length;
   activePlayers.textContent = players.filter((player) => player.is_active).length;
+  if (mobileTotalPlayers) {
+    mobileTotalPlayers.textContent = players.length;
+  }
+  if (mobileActivePlayers) {
+    mobileActivePlayers.textContent = players.filter((player) => player.is_active).length;
+  }
 
   if (!players.length) {
     playersList.innerHTML = '<div class="empty-state">Nenhum jogador cadastrado ainda.</div>';

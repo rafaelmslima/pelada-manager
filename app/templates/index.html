@@ -41,10 +41,11 @@
           </div>
 
           <nav class="top-nav" aria-label="Navegacao principal">
-            <button class="nav-button active" id="homeNavButton" type="button">Pelada de hoje</button>
-            <button class="nav-button" id="managementNavButton" type="button">Gestao</button>
-            <button class="nav-button" id="historyNavButton" type="button">Historico</button>
-            <button class="nav-button" id="rankingsNavButton" type="button">Rankings</button>
+            <button class="nav-button active" id="homeNavButton" type="button"><span class="nav-icon">🏠</span><span class="nav-label">Inicio</span><span class="nav-desktop-label">Pelada de hoje</span></button>
+            <button class="nav-button" id="managementNavButton" type="button"><span class="nav-icon">👥</span><span class="nav-label">Jogadores</span><span class="nav-desktop-label">Gestao</span></button>
+            <button class="nav-button" id="historyNavButton" type="button"><span class="nav-icon">🗓</span><span class="nav-label">Historico</span><span class="nav-desktop-label">Historico</span></button>
+            <button class="nav-button" id="rankingsNavButton" type="button"><span class="nav-icon">🏆</span><span class="nav-label">Ranking</span><span class="nav-desktop-label">Rankings</span></button>
+            <button class="nav-button profile-nav-button" id="profileNavButton" type="button"><span class="nav-icon">👤</span><span class="nav-label">Perfil</span><span class="nav-desktop-label">Perfil</span></button>
             <button class="nav-button hidden" id="shareNavButton" type="button">Times para print</button>
           </nav>
 
@@ -67,6 +68,20 @@
           </section>
 
           <div id="message" class="message hidden"></div>
+
+          <section class="mobile-home-shell">
+            <button class="primary-button mobile-generate-button" id="mobileGenerateTeamsButton" type="button">Gerar times</button>
+            <article class="panel mobile-today-card">
+              <h3>Pelada de hoje</h3>
+              <dl>
+                <div><dt>Jogadores confirmados</dt><dd><span id="mobileActivePlayers">0</span> / <span id="mobileTotalPlayers">0</span></dd></div>
+                <div><dt>Horario</dt><dd>20:00</dd></div>
+                <div><dt>Local</dt><dd>Arena Society</dd></div>
+                <div><dt>Tipo de cobranca</dt><dd>Diarista</dd></div>
+              </dl>
+              <button class="secondary-button" id="mobileHistoryButton" type="button">Ver historico</button>
+            </article>
+          </section>
 
           <section id="homeView" class="workspace">
             <aside class="panel">

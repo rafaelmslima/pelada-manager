@@ -3,11 +3,12 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app.database import Base, engine
+from app.database import Base, engine, ensure_legacy_multitenant_columns
 from app.routers import auth, matches, players, rankings, teams
 
 
 Base.metadata.create_all(bind=engine)
+ensure_legacy_multitenant_columns()
 
 app = FastAPI(
     title="Pelada Manager",
