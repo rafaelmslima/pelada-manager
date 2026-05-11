@@ -3,19 +3,17 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#08765f" />
+    <meta name="theme-color" content="#0a6a4c" />
     <title>Pelada Manager</title>
     <link rel="manifest" href="/static/manifest.json" />
     <link rel="icon" type="image/png" href="/static/pelapan-logo.png" />
     <link rel="apple-touch-icon" href="/static/pelapan-logo.png" />
-    <link rel="stylesheet" href="/static/style.css?v=20260510-whatsapp" />
+    <link rel="stylesheet" href="/static/style.css?v=20260511-ui-refresh" />
   </head>
   <body>
     <main class="app-shell">
       <section id="authView" class="panel auth-panel hidden">
-        <div class="panel-heading">
-          <h2>Acesso</h2>
-        </div>
+        <div class="panel-heading"><h2>Acesso</h2></div>
         <div class="auth-tabs">
           <button class="nav-button active" id="loginTabButton" type="button">Login</button>
           <button class="nav-button" id="registerTabButton" type="button">Cadastro</button>
@@ -33,179 +31,119 @@
           <button class="primary-button" type="submit">Criar conta</button>
         </form>
       </section>
-      <section id="appContent">
-      <nav class="top-nav" aria-label="Navegacao principal">
-        <button class="nav-button active" id="homeNavButton" type="button">Pelada de hoje</button>
-        <button class="nav-button" id="managementNavButton" type="button">Gestao</button>
-        <button class="nav-button" id="historyNavButton" type="button">Historico</button>
-        <button class="nav-button" id="rankingsNavButton" type="button">Rankings</button>
-        <button class="nav-button hidden" id="shareNavButton" type="button">Times para print</button>
-        <button class="nav-button" id="logoutButton" type="button">Sair</button>
-      </nav>
 
-      <section class="hero">
-        <div class="hero-brand">
-          <img class="app-logo" src="/static/pelapan-logo.png" alt="Logo Pelapan" />
-          <div>
-            <p class="eyebrow" id="peladaHeader">Organizacao de peladas</p>
-            <h1>Pelada Manager</h1>
-            <p class="hero-copy">Cadastre jogadores, marque a presenca do dia e gere times equilibrados em poucos cliques.</p>
+      <section id="appContent" class="app-layout">
+        <aside class="sidebar">
+          <div class="brand-block">
+            <img class="app-logo" src="/static/pelapan-logo.png" alt="Logo Pelapan" />
+            <h2>Pelada Manager</h2>
+            <p id="peladaHeader">Gestao com organizacao e fair play</p>
           </div>
-        </div>
-        <div class="hero-stats">
-          <div>
-            <span id="totalPlayers">0</span>
-            <small>jogadores</small>
-          </div>
-          <div>
-            <span id="activePlayers">0</span>
-            <small>confirmados</small>
-          </div>
-        </div>
-      </section>
-      <div id="message" class="message hidden"></div>
 
-      <section id="homeView" class="workspace">
-        <aside class="panel">
-          <div class="panel-heading">
-            <h2 id="formTitle">Novo jogador</h2>
-            <button class="ghost-button hidden" id="cancelEditButton" type="button">Cancelar</button>
-          </div>
-          <form id="playerForm" class="player-form">
-            <input type="hidden" id="playerId" />
-            <label>
-              Nome
-              <input id="name" name="name" placeholder="Ex: Rafael Silva" required maxlength="120" />
-            </label>
-            <label>
-              Posicao
-              <select id="position" name="position" required>
-                <option value="defesa">Defesa</option>
-                <option value="meio">Meio</option>
-                <option value="ataque">Ataque</option>
-              </select>
-            </label>
-            <label>
-              Rating
-              <input id="rating" name="rating" type="number" min="0" max="5" step="0.1" value="3" required />
-            </label>
-            <label>
-              Tipo de cobranca
-              <select id="billingType" name="billingType" required>
-                <option value="diarista">Diarista</option>
-                <option value="mensalista">Mensalista</option>
-              </select>
-            </label>
-            <label>
-              WhatsApp
-              <input id="whatsapp" name="whatsapp" placeholder="Ex: 11999999999" maxlength="30" />
-            </label>
-            <label class="checkbox-row">
-              <input id="isActive" name="isActive" type="checkbox" />
-              Confirmado para hoje
-            </label>
-            <button class="primary-button" type="submit">Salvar jogador</button>
-          </form>
+          <nav class="top-nav" aria-label="Navegacao principal">
+            <button class="nav-button active" id="homeNavButton" type="button">Pelada de hoje</button>
+            <button class="nav-button" id="managementNavButton" type="button">Gestao</button>
+            <button class="nav-button" id="historyNavButton" type="button">Historico</button>
+            <button class="nav-button" id="rankingsNavButton" type="button">Rankings</button>
+            <button class="nav-button hidden" id="shareNavButton" type="button">Times para print</button>
+          </nav>
 
-          <div class="generator">
-            <h2>Gerar times</h2>
-            <label>
-              Jogadores por time
-              <input id="playersPerTeam" type="number" min="1" max="30" value="5" />
-            </label>
-            <button class="secondary-button" id="generateTeamsButton" type="button">Gerar Times</button>
-            <button class="primary-button hidden" id="saveMatchButton" type="button">Salvar pelada</button>
-          </div>
+          <button class="nav-button logout" id="logoutButton" type="button">Sair</button>
         </aside>
 
-        <section class="content">
-          <div class="panel list-panel">
-            <div class="panel-heading">
-              <div>
-                <h2>Jogadores</h2>
-                <p>Marque quem vai jogar hoje.</p>
+        <section class="main-area">
+          <section class="hero">
+            <div>
+              <p class="eyebrow">Bem-vindo</p>
+              <h1>Pelada Manager</h1>
+              <p class="hero-copy">Cadastre jogadores, confirme presenca e gere times equilibrados em poucos cliques.</p>
+            </div>
+            <div class="hero-stats">
+              <article><span id="totalPlayers">0</span><small>Total de jogadores</small></article>
+              <article><span id="activePlayers">0</span><small>Confirmados</small></article>
+              <article><span>0</span><small>Times hoje</small></article>
+              <article><span>R$ 0</span><small>Arrecadacao</small></article>
+            </div>
+          </section>
+
+          <div id="message" class="message hidden"></div>
+
+          <section id="homeView" class="workspace">
+            <aside class="panel">
+              <div class="panel-heading">
+                <h2 id="formTitle">Novo jogador</h2>
+                <button class="ghost-button hidden" id="cancelEditButton" type="button">Cancelar</button>
               </div>
-            </div>
-            <div id="playersList" class="players-list"></div>
-          </div>
+              <form id="playerForm" class="player-form">
+                <input type="hidden" id="playerId" />
+                <label>Nome<input id="name" name="name" placeholder="Ex: Rafael Silva" required maxlength="120" /></label>
+                <label>Posicao
+                  <select id="position" name="position" required>
+                    <option value="defesa">Defesa</option><option value="meio">Meio</option><option value="ataque">Ataque</option>
+                  </select>
+                </label>
+                <label>Rating<input id="rating" name="rating" type="number" min="0" max="5" step="0.1" value="3" required /></label>
+                <label>Tipo de cobranca
+                  <select id="billingType" name="billingType" required><option value="diarista">Diarista</option><option value="mensalista">Mensalista</option></select>
+                </label>
+                <label>WhatsApp<input id="whatsapp" name="whatsapp" placeholder="Ex: 11999999999" maxlength="30" /></label>
+                <label class="checkbox-row"><input id="isActive" name="isActive" type="checkbox" />Confirmado para hoje</label>
+                <button class="primary-button" type="submit">Salvar jogador</button>
+              </form>
 
-          <section id="teamsResult" class="teams-result"></section>
+              <div class="generator">
+                <h2>Gerar times</h2>
+                <label>Jogadores por time<input id="playersPerTeam" type="number" min="1" max="30" value="5" /></label>
+                <button class="secondary-button" id="generateTeamsButton" type="button">Gerar Times</button>
+                <button class="primary-button hidden" id="saveMatchButton" type="button">Salvar pelada</button>
+              </div>
+            </aside>
+
+            <section class="content">
+              <div class="panel list-panel">
+                <div class="panel-heading"><div><h2>Jogadores</h2><p>Marque quem vai jogar hoje.</p></div></div>
+                <div id="playersList" class="players-list"></div>
+              </div>
+              <section id="teamsResult" class="teams-result"></section>
+            </section>
+          </section>
+
+          <section id="managementView" class="view-panel hidden">
+            <div class="management-summary" id="managementSummary"></div>
+            <div class="panel list-panel">
+              <div class="panel-heading"><div><h2>Gestao da pelada</h2><p>Acompanhe mensalistas, diaristas, pagamentos e contatos.</p></div><button class="ghost-button" id="refreshManagementButton" type="button">Atualizar</button></div>
+              <div id="managementList" class="management-list"></div>
+            </div>
+          </section>
+
+          <section id="historyView" class="view-panel hidden">
+            <div class="panel list-panel">
+              <div class="panel-heading"><div><h2>Historico de peladas</h2><p>Peladas salvas e estatisticas.</p></div><button class="ghost-button" id="refreshHistoryButton" type="button">Atualizar</button></div>
+              <div id="matchesList" class="matches-list"></div>
+            </div>
+            <section id="matchDetails" class="match-details"></section>
+          </section>
+
+          <section id="rankingsView" class="view-panel hidden">
+            <div class="panel list-panel">
+              <div class="panel-heading"><div><h2>Rankings</h2><p>Artilheiros e assistencias pelo historico.</p></div><button class="ghost-button" id="refreshRankingsButton" type="button">Atualizar ranking</button></div>
+              <div id="rankingsEmptyState" class="empty-state hidden">Ainda nao ha estatisticas suficientes para montar o ranking.</div>
+              <div id="rankingsContent" class="rankings-content"></div>
+            </div>
+          </section>
+
+          <section id="shareView" class="share-view hidden">
+            <div class="share-toolbar"><div><p class="eyebrow">Pelada salva</p><h2>Times para print</h2></div><div class="row-actions"><button class="ghost-button" id="backToHistoryButton" type="button">Historico</button><button class="primary-button" id="printTeamsButton" type="button">Imprimir</button></div></div>
+            <section id="shareContent" class="share-content"></section>
+          </section>
         </section>
-      </section>
-
-      <section id="managementView" class="view-panel hidden">
-        <div class="management-summary" id="managementSummary"></div>
-
-        <div class="panel list-panel">
-          <div class="panel-heading">
-            <div>
-              <h2>Gestao da pelada</h2>
-              <p>Acompanhe mensalistas, diaristas, pagamentos e contatos do mes atual.</p>
-            </div>
-            <button class="ghost-button" id="refreshManagementButton" type="button">Atualizar</button>
-          </div>
-          <div id="managementList" class="management-list"></div>
-        </div>
-      </section>
-
-      <section id="historyView" class="view-panel hidden">
-        <div class="panel list-panel">
-          <div class="panel-heading">
-            <div>
-              <h2>Historico de peladas</h2>
-              <p>Peladas salvas, detalhes dos times e estatisticas.</p>
-            </div>
-            <button class="ghost-button" id="refreshHistoryButton" type="button">Atualizar</button>
-          </div>
-          <div id="matchesList" class="matches-list"></div>
-        </div>
-
-        <section id="matchDetails" class="match-details"></section>
-      </section>
-
-      <section id="rankingsView" class="view-panel hidden">
-        <div class="panel list-panel">
-          <div class="panel-heading">
-            <div>
-              <h2>Rankings</h2>
-              <p>Artilheiros e assistencias calculados pelo historico das peladas.</p>
-            </div>
-            <button class="ghost-button" id="refreshRankingsButton" type="button">Atualizar ranking</button>
-          </div>
-          <div id="rankingsEmptyState" class="empty-state hidden">Ainda nao ha estatisticas suficientes para montar o ranking.</div>
-          <div id="rankingsContent" class="rankings-content"></div>
-        </div>
-      </section>
-
-      <section id="shareView" class="share-view hidden">
-        <div class="share-toolbar">
-          <div>
-            <p class="eyebrow">Pelada salva</p>
-            <h2>Times para print</h2>
-          </div>
-          <div class="row-actions">
-            <button class="ghost-button" id="backToHistoryButton" type="button">Historico</button>
-            <button class="primary-button" id="printTeamsButton" type="button">Imprimir</button>
-          </div>
-        </div>
-        <section id="shareContent" class="share-content"></section>
       </section>
 
       <div id="profileModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
         <div class="modal-backdrop" onclick="closeProfileModal()"></div>
-        <section class="modal-card">
-          <header class="modal-header">
-            <div>
-              <p class="eyebrow">Perfil do jogador</p>
-              <h2 id="profileTitle">Jogador</h2>
-            </div>
-            <button class="ghost-button" type="button" onclick="closeProfileModal()">Fechar</button>
-          </header>
-          <div id="profileContent"></div>
-        </section>
+        <section class="modal-card"><header class="modal-header"><div><p class="eyebrow">Perfil do jogador</p><h2 id="profileTitle">Jogador</h2></div><button class="ghost-button" type="button" onclick="closeProfileModal()">Fechar</button></header><div id="profileContent"></div></section>
       </div>
-      </section>
     </main>
-    <script src="/static/script.js?v=20260510-auth"></script>
+    <script src="/static/script.js?v=20260511-ui-refresh"></script>
   </body>
 </html>
