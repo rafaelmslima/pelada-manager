@@ -8,7 +8,7 @@
     <link rel="manifest" href="/static/manifest.json" />
     <link rel="icon" type="image/png" href="/static/pelapan-logo.png" />
     <link rel="apple-touch-icon" href="/static/pelapan-logo.png" />
-    <link rel="stylesheet" href="/static/style.css?v=20260511-ui-refresh" />
+    <link rel="stylesheet" href="/static/style.css?v=20260511-polish" />
   </head>
   <body>
     <main class="app-shell">
@@ -41,11 +41,11 @@
           </div>
 
           <nav class="top-nav" aria-label="Navegacao principal">
-            <button class="nav-button active" id="homeNavButton" type="button"><span class="nav-icon">🏠</span><span class="nav-label">Inicio</span><span class="nav-desktop-label">Pelada de hoje</span></button>
-            <button class="nav-button" id="managementNavButton" type="button"><span class="nav-icon">👥</span><span class="nav-label">Jogadores</span><span class="nav-desktop-label">Gestao</span></button>
-            <button class="nav-button" id="historyNavButton" type="button"><span class="nav-icon">🗓</span><span class="nav-label">Historico</span><span class="nav-desktop-label">Historico</span></button>
-            <button class="nav-button" id="rankingsNavButton" type="button"><span class="nav-icon">🏆</span><span class="nav-label">Ranking</span><span class="nav-desktop-label">Rankings</span></button>
-            <button class="nav-button profile-nav-button" id="profileNavButton" type="button"><span class="nav-icon">👤</span><span class="nav-label">Perfil</span><span class="nav-desktop-label">Perfil</span></button>
+            <button class="nav-button active" id="homeNavButton" type="button"><span class="nav-icon home-icon"></span><span class="nav-label">Inicio</span><span class="nav-desktop-label">Pelada de hoje</span></button>
+            <button class="nav-button" id="managementNavButton" type="button"><span class="nav-icon players-icon"></span><span class="nav-label">Jogadores</span><span class="nav-desktop-label">Gestao</span></button>
+            <button class="nav-button" id="historyNavButton" type="button"><span class="nav-icon history-icon"></span><span class="nav-label">Historico</span><span class="nav-desktop-label">Historico</span></button>
+            <button class="nav-button" id="rankingsNavButton" type="button"><span class="nav-icon ranking-icon"></span><span class="nav-label">Ranking</span><span class="nav-desktop-label">Rankings</span></button>
+            <button class="nav-button profile-nav-button" id="profileNavButton" type="button"><span class="nav-icon profile-icon"></span><span class="nav-label">Perfil</span><span class="nav-desktop-label">Perfil</span></button>
             <button class="nav-button hidden" id="shareNavButton" type="button">Times para print</button>
           </nav>
 
@@ -54,7 +54,7 @@
 
         <section class="main-area">
           <section class="hero">
-            <div>
+            <div class="hero-copy-block">
               <p class="eyebrow">Bem-vindo</p>
               <h1>Pelada Manager</h1>
               <p class="hero-copy">Cadastre jogadores, confirme presenca e gere times equilibrados em poucos cliques.</p>
@@ -85,14 +85,14 @@
 
           <section id="mobilePlayersView" class="mobile-players-view hidden">
             <header class="mobile-players-header">
-              <button class="icon-button" id="mobilePlayersBackButton" type="button">←</button>
+              <button class="icon-button" id="mobilePlayersBackButton" type="button" aria-label="Voltar">&lt;</button>
               <div>
                 <h2>Jogadores</h2>
                 <p><span id="mobilePlayersCount">0</span> jogadores cadastrados</p>
               </div>
               <div class="mobile-players-actions">
-                <button class="icon-button" type="button">⌕</button>
-                <button class="icon-button" type="button">☰</button>
+                <button class="icon-button" type="button" aria-label="Buscar">?</button>
+                <button class="icon-button" type="button" aria-label="Filtros">=</button>
               </div>
             </header>
             <div class="mobile-players-panel">
@@ -104,7 +104,7 @@
               </div>
               <div id="mobilePlayersList" class="mobile-players-list"></div>
             </div>
-            <button id="mobileAddPlayerFab" class="mobile-add-fab" type="button">＋</button>
+            <button id="mobileAddPlayerFab" class="mobile-add-fab" type="button" aria-label="Adicionar jogador">+</button>
           </section>
 
           <div id="mobilePlayerModal" class="mobile-player-modal hidden">
@@ -148,12 +148,17 @@
                 <label>Nome<input id="name" name="name" placeholder="Ex: Rafael Silva" required maxlength="120" /></label>
                 <label>Posicao
                   <select id="position" name="position" required>
-                    <option value="defesa">Defesa</option><option value="meio">Meio</option><option value="ataque">Ataque</option>
+                    <option value="defesa">Defesa</option>
+                    <option value="meio">Meio</option>
+                    <option value="ataque">Ataque</option>
                   </select>
                 </label>
                 <label>Rating<input id="rating" name="rating" type="number" min="0" max="5" step="0.1" value="3" required /></label>
                 <label>Tipo de cobranca
-                  <select id="billingType" name="billingType" required><option value="diarista">Diarista</option><option value="mensalista">Mensalista</option></select>
+                  <select id="billingType" name="billingType" required>
+                    <option value="diarista">Diarista</option>
+                    <option value="mensalista">Mensalista</option>
+                  </select>
                 </label>
                 <label>WhatsApp<input id="whatsapp" name="whatsapp" placeholder="Ex: 11999999999" maxlength="30" /></label>
                 <label class="checkbox-row"><input id="isActive" name="isActive" type="checkbox" />Confirmado para hoje</label>
@@ -213,6 +218,6 @@
         <section class="modal-card"><header class="modal-header"><div><p class="eyebrow">Perfil do jogador</p><h2 id="profileTitle">Jogador</h2></div><button class="ghost-button" type="button" onclick="closeProfileModal()">Fechar</button></header><div id="profileContent"></div></section>
       </div>
     </main>
-    <script src="/static/script.js?v=20260511-ui-refresh"></script>
+    <script src="/static/script.js?v=20260511-polish"></script>
   </body>
 </html>

@@ -56,6 +56,7 @@ const mobileAddPlayerFab = document.querySelector("#mobileAddPlayerFab");
 const mobilePlayerModal = document.querySelector("#mobilePlayerModal");
 const mobilePlayerForm = document.querySelector("#mobilePlayerForm");
 const mobileHomeShell = document.querySelector(".mobile-home-shell");
+const heroSection = document.querySelector(".hero");
 
 let players = [];
 let matches = [];
@@ -283,6 +284,7 @@ function showAppView(me) {
   if (me?.pelada?.name && peladaHeader) {
     peladaHeader.textContent = me.pelada.name;
   }
+  showView("home");
 }
 
 async function submitLogin(event) {
@@ -1072,6 +1074,7 @@ function showView(view) {
   const isRankings = view === "rankings";
   const isShare = view === "share";
   const showMobilePlayers = isMobile && isManagement;
+  heroSection?.classList.toggle("hidden", view !== "home");
   homeView.classList.toggle("hidden", isManagement || isHistory || isRankings || isShare || showMobilePlayers);
   managementView.classList.toggle("hidden", !(isManagement && !showMobilePlayers));
   mobilePlayersView?.classList.toggle("hidden", !showMobilePlayers);
