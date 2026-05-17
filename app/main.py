@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 
 from app.database import Base, engine, ensure_legacy_multitenant_columns
 from app.routers import auth, matches, players, rankings, teams
@@ -17,7 +18,6 @@ app = FastAPI(
 )
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
-templates = Jinja2Templates(directory="app/templates")
 
 app.include_router(auth.router)
 app.include_router(players.router)
@@ -25,7 +25,20 @@ app.include_router(teams.router)
 app.include_router(matches.router)
 app.include_router(rankings.router)
 
+REACT_INDEX = Path("app/static/react/index.html")
+SERVICE_WORKER = Path("app/static/service-worker.js")
 
-@app.get("/", response_class=HTMLResponse)
-def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+
+@app.get("/service-worker.js", include_in_schema=False)
+def service_worker():
+    return FileResponse(SERVICE_WORKER, media_type="application/javascript")
+
+
+@app.get("/", include_in_schema=False)
+@app.get("/{full_path:path}", include_in_schema=False)
+def react_app(full_path: str = ""):
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="Not found")
+    if REACT_INDEX.exists():
+        return FileResponse(REACT_INDEX)
+    return FileResponse("app/templates/index.html")

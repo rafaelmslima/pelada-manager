@@ -7,3 +7,5 @@ pelada_manager.db
 .pytest_cache/
 .idea/
 .vscode/
+frontend/node_modules/
+app/static/react/

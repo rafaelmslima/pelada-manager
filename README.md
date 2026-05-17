@@ -7,7 +7,7 @@ Aplicacao multiusuario para organizar peladas com login, isolamento por conta (m
 - PostgreSQL via `DATABASE_URL` (Railway)
 - SQLite como fallback local
 - Alembic para migracoes
-- Frontend em HTML/CSS/JS
+- Frontend em React + TypeScript + Vite
 
 ## Setup
 ```bash
@@ -21,6 +21,19 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
+## Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Para gerar o bundle servido pelo FastAPI:
+```bash
+cd frontend
+npm run build
+```
+
 ## Migracoes
 ```bash
 alembic upgrade head
@@ -28,7 +41,7 @@ alembic upgrade head
 
 ## Railway
 - Definir `DATABASE_URL` no projeto.
-- Comando web: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Comando web: `cd frontend && npm install --include=dev && npm run build && cd .. && uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 - `Procfile` incluido.
 
 ## Autenticacao
