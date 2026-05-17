@@ -1,23 +1,27 @@
-import React, { useEffect, useMemo, useState } from "https://esm.sh/react@19.0.0";
-import { createRoot } from "https://esm.sh/react-dom@19.0.0/client";
-import {
-  Banknote,
-  CalendarDays,
-  Check,
-  CircleUserRound,
-  Home,
-  ListFilter,
-  LogOut,
-  Plus,
-  Printer,
-  Search,
-  Sparkles,
-  Trophy,
-  UsersRound,
-  X,
-} from "https://esm.sh/lucide-react@0.468.0?deps=react@19.0.0";
+const root = document.querySelector("#root");
 
-const h = React.createElement;
+const state = {
+  session: null,
+  players: [],
+  matches: [],
+  rankings: null,
+  teams: null,
+  shareMatch: null,
+  view: "home",
+  message: null,
+};
+
+const icons = {
+  home: '<svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10.5V20h13v-9.5"/><path d="M9.5 20v-5h5v5"/></svg>',
+  users: '<svg viewBox="0 0 24 24"><path d="M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M17 10a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M14.5 14.5A5 5 0 0 1 20.5 20"/></svg>',
+  calendar: '<svg viewBox="0 0 24 24"><path d="M7 3v4"/><path d="M17 3v4"/><path d="M4.5 8h15"/><path d="M6 5h12a2 2 0 0 1 2 2v11.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></svg>',
+  trophy: '<svg viewBox="0 0 24 24"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 7H4a3 3 0 0 0 3 3"/><path d="M17 7h3a3 3 0 0 1-3 3"/></svg>',
+  user: '<svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4.5 21a7.5 7.5 0 0 1 15 0"/></svg>',
+  plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg>',
+  check: '<svg viewBox="0 0 24 24"><path d="m5 12 4 4 10-10"/></svg>',
+  sparkles: '<svg viewBox="0 0 24 24"><path d="M12 3l1.6 4.8L18 9.4l-4.4 1.8L12 16l-1.6-4.8L6 9.4l4.4-1.6L12 3Z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"/></svg>',
+  money: '<svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z"/><path d="M15 8.5c-.7-.7-1.8-1-3-1-1.6 0-2.7.7-2.7 1.8 0 2.8 5.4 1.1 5.4 4.2 0 1.1-1.1 2-2.8 2-1.2 0-2.5-.4-3.2-1.2"/><path d="M12 6v12"/></svg>',
+};
 
 async function requestJson(url, options = {}) {
   const response = await fetch(url, options);
@@ -27,492 +31,634 @@ async function requestJson(url, options = {}) {
     const detail = Array.isArray(data?.detail)
       ? data.detail.map((item) => item.msg).join(" ")
       : data?.detail;
-    const error = new Error(detail || "Nao foi possivel concluir a acao.");
-    error.status = response.status;
-    throw error;
+    throw new Error(detail || "Nao foi possivel concluir a acao.");
   }
   return data;
 }
 
 const api = {
   me: () => requestJson("/api/auth/me"),
-  login: (email, password) =>
-    requestJson("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    }),
-  register: (payload) =>
-    requestJson("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }),
+  login: (email, password) => postJson("/api/auth/login", { email, password }),
+  register: (payload) => postJson("/api/auth/register", payload),
   logout: () => requestJson("/api/auth/logout", { method: "POST" }),
-  updatePelada: (payload) =>
-    requestJson("/api/auth/pelada", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }),
+  updatePelada: (payload) => putJson("/api/auth/pelada", payload),
   players: () => requestJson("/api/players"),
-  createPlayer: (payload) =>
-    requestJson("/api/players", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }),
-  updatePlayer: (id, payload) =>
-    requestJson(`/api/players/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }),
+  createPlayer: (payload) => postJson("/api/players", payload),
+  updatePlayer: (id, payload) => putJson(`/api/players/${id}`, payload),
   deletePlayer: (id) => requestJson(`/api/players/${id}`, { method: "DELETE" }),
   togglePlayer: (id) => requestJson(`/api/players/${id}/toggle-active`, { method: "PATCH" }),
-  generateTeams: (players_per_team) =>
-    requestJson("/api/teams/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ players_per_team }),
-    }),
-  createMatch: (payload) =>
-    requestJson("/api/matches", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }),
+  generateTeams: (players_per_team) => postJson("/api/teams/generate", { players_per_team }),
+  createMatch: (payload) => postJson("/api/matches", payload),
   matches: () => requestJson("/api/matches"),
   match: (id) => requestJson(`/api/matches/${id}`),
   deleteMatch: (id) => requestJson(`/api/matches/${id}`, { method: "DELETE" }),
   rankings: () => requestJson("/api/rankings/summary"),
 };
 
-function formatPosition(value) {
+function postJson(url, payload) {
+  return requestJson(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+}
+
+function putJson(url, payload) {
+  return requestJson(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+}
+
+function esc(value) {
+  return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+}
+
+function fmtPos(value) {
   return { defesa: "Defesa", meio: "Meio", ataque: "Ataque" }[value] || value;
 }
 
-function formatBilling(value) {
-  return { diarista: "Diarista", mensalista: "Mensalista" }[value] || value || "Diarista";
+function fmtBilling(value) {
+  return { diarista: "Diarista", mensalista: "Mensalista" }[value] || "Diarista";
 }
 
-function formatRating(value) {
+function fmtRating(value) {
   return Number(value || 0).toFixed(1).replace(".0", "");
 }
 
-function formatDate(value) {
+function fmtDate(value) {
   const [year, month, day] = String(value).slice(0, 10).split("-");
   return `${day}/${month}/${year}`;
 }
 
 function initials(name) {
-  return String(name || "")
-    .split(" ")
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  return String(name || "").split(" ").filter(Boolean).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 }
 
-function App() {
-  const [session, setSession] = useState(null);
-  const [players, setPlayers] = useState([]);
-  const [matches, setMatches] = useState([]);
-  const [rankings, setRankings] = useState(null);
-  const [teams, setTeams] = useState(null);
-  const [shareMatch, setShareMatch] = useState(null);
-  const [view, setView] = useState("home");
-  const [message, setMessage] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const flash = (text, error = false) => {
-    setMessage({ text, error });
-    window.setTimeout(() => setMessage(null), 3800);
-  };
-
-  const handleError = (error) => {
-    if (error.status === 401) {
-      setSession(null);
-      return;
-    }
-    flash(error.message || "Nao foi possivel concluir a acao.", true);
-  };
-
-  const reloadPlayers = () => api.players().then(setPlayers).catch(handleError);
-  const reloadMatches = () => api.matches().then(setMatches).catch(handleError);
-  const reloadRankings = () => api.rankings().then(setRankings).catch(handleError);
-
-  useEffect(() => {
-    api
-      .me()
-      .then((me) => {
-        setSession(me);
-        return api.players();
-      })
-      .then(setPlayers)
-      .catch(() => setSession(null))
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/service-worker.js").catch(() => {});
-    }
-  }, []);
-
-  if (loading) return h("main", { className: "splash" }, h("img", { src: "/static/pelapan-logo.png", alt: "" }), h("strong", null, "Carregando..."));
-  if (!session) return h(AuthScreen, { onLogin: (me) => { setSession(me); reloadPlayers(); }, flash });
-
-  const active = players.filter((player) => player.is_active);
-  const revenue = active.filter((player) => player.billing_type === "diarista").length * 20;
-
-  const logout = async () => {
-    await api.logout().catch(() => null);
-    setSession(null);
-    setView("home");
-  };
-
-  return h(
-    "div",
-    { className: "app-frame" },
-    h(Sidebar, { session, view, setView, logout, reloadMatches, reloadRankings }),
-    h(
-      "main",
-      { className: "app-main" },
-      h(Header, { session, active: active.length, total: players.length, revenue, teams: teams?.team_count || 0 }),
-      message && h("div", { className: `toast ${message.error ? "error" : ""}` }, message.text),
-      view === "home" &&
-        h(HomeView, {
-          session,
-          players,
-          teams,
-          setTeams,
-          setShareMatch,
-          setView,
-          reloadMatches,
-          flash,
-          handleError,
-        }),
-      view === "players" && h(PlayersView, { players, reloadPlayers, flash, handleError, defaultBilling: session.pelada.default_billing_type }),
-      view === "history" && h(HistoryView, { matches, reloadMatches, setShareMatch, setView, flash, handleError }),
-      view === "rankings" && h(RankingsView, { rankings, reloadRankings }),
-      view === "profile" && h(ProfileView, { session, setSession, flash, handleError, logout }),
-      view === "share" && h(ShareView, { match: shareMatch, setView }),
-    ),
-    h(BottomNav, { view, setView, reloadMatches, reloadRankings }),
-  );
+function flash(text, error = false) {
+  state.message = { text, error };
+  render();
+  setTimeout(() => {
+    state.message = null;
+    render();
+  }, 3800);
 }
 
-function AuthScreen({ onLogin, flash }) {
-  const [mode, setMode] = useState("login");
-  const [busy, setBusy] = useState(false);
+function setView(view) {
+  state.view = view;
+  if (view === "history") loadMatches();
+  if (view === "rankings") loadRankings();
+  render();
+}
 
-  async function submit(event) {
+async function loadPlayers() {
+  state.players = await api.players();
+  render();
+}
+
+async function loadMatches() {
+  try {
+    state.matches = await api.matches();
+    render();
+  } catch (error) {
+    flash(error.message, true);
+  }
+}
+
+async function loadRankings() {
+  try {
+    state.rankings = await api.rankings();
+    render();
+  } catch (error) {
+    flash(error.message, true);
+  }
+}
+
+async function init() {
+  root.innerHTML = `<main class="splash"><img src="/static/pelapan-logo.png" alt=""><strong>Carregando...</strong></main>`;
+  try {
+    state.session = await api.me();
+    state.players = await api.players();
+  } catch {
+    state.session = null;
+  }
+  render();
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("/service-worker.js").catch(() => {});
+}
+
+function render() {
+  if (!state.session) {
+    root.innerHTML = authHtml();
+    bindAuth();
+    return;
+  }
+
+  root.innerHTML = `
+    <div class="app-frame">
+      ${sidebarHtml()}
+      <main class="app-main">
+        ${headerHtml()}
+        ${state.message ? `<div class="toast ${state.message.error ? "error" : ""}">${esc(state.message.text)}</div>` : ""}
+        ${viewHtml()}
+      </main>
+      ${bottomNavHtml()}
+    </div>
+  `;
+  bindApp();
+}
+
+function authHtml() {
+  return `
+    <main class="auth-page">
+      <section class="auth-card">
+        <img src="/static/pelapan-logo.png" alt="">
+        <p class="eyebrow">Organize sua pelada</p>
+        <h1>Pelada Manager</h1>
+        <div class="segmented">
+          <button class="active" data-auth-tab="login" type="button">Login</button>
+          <button data-auth-tab="register" type="button">Cadastro</button>
+        </div>
+        <form id="authForm" class="form-grid" data-mode="login">
+          <div id="registerFields" class="hidden"></div>
+          <label>Email<input name="email" type="email" required></label>
+          <label>Senha<input name="password" type="password" required></label>
+          <button class="primary-action">Entrar</button>
+        </form>
+      </section>
+    </main>
+  `;
+}
+
+function bindAuth() {
+  document.querySelectorAll("[data-auth-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const mode = button.dataset.authTab;
+      document.querySelectorAll("[data-auth-tab]").forEach((item) => item.classList.toggle("active", item === button));
+      const form = document.querySelector("#authForm");
+      form.dataset.mode = mode;
+      document.querySelector("#registerFields").innerHTML =
+        mode === "register"
+          ? `<label>Nome<input name="name" required minlength="2"></label><label>Nome da pelada<input name="pelada_name"></label>`
+          : "";
+      form.querySelector("button.primary-action").textContent = mode === "register" ? "Criar conta" : "Entrar";
+    });
+  });
+
+  document.querySelector("#authForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    setBusy(true);
+    const form = event.currentTarget;
+    const data = new FormData(form);
     try {
-      const me =
-        mode === "login"
-          ? await api.login(form.get("email"), form.get("password"))
-          : await api.register({
-              name: form.get("name"),
-              email: form.get("email"),
-              password: form.get("password"),
-              pelada_name: form.get("pelada_name") || null,
-            });
-      onLogin(me);
+      state.session =
+        form.dataset.mode === "register"
+          ? await api.register({
+              name: data.get("name"),
+              email: data.get("email"),
+              password: data.get("password"),
+              pelada_name: data.get("pelada_name") || null,
+            })
+          : await api.login(data.get("email"), data.get("password"));
+      state.players = await api.players();
+      state.view = "home";
+      render();
     } catch (error) {
       flash(error.message, true);
-    } finally {
-      setBusy(false);
     }
-  }
-
-  return h(
-    "main",
-    { className: "auth-page" },
-    h(
-      "section",
-      { className: "auth-card" },
-      h("img", { src: "/static/pelapan-logo.png", alt: "" }),
-      h("p", { className: "eyebrow" }, "Organize sua pelada"),
-      h("h1", null, "Pelada Manager"),
-      h(
-        "div",
-        { className: "segmented" },
-        h("button", { className: mode === "login" ? "active" : "", onClick: () => setMode("login"), type: "button" }, "Login"),
-        h("button", { className: mode === "register" ? "active" : "", onClick: () => setMode("register"), type: "button" }, "Cadastro"),
-      ),
-      h(
-        "form",
-        { className: "form-grid", onSubmit: submit },
-        mode === "register" && h(React.Fragment, null, h(Field, { label: "Nome", name: "name", required: true }), h(Field, { label: "Nome da pelada", name: "pelada_name" })),
-        h(Field, { label: "Email", name: "email", type: "email", required: true }),
-        h(Field, { label: "Senha", name: "password", type: "password", required: true }),
-        h("button", { className: "primary-action", disabled: busy }, busy ? "Aguarde..." : mode === "login" ? "Entrar" : "Criar conta"),
-      ),
-    ),
-  );
-}
-
-function Sidebar({ session, view, setView, logout, reloadMatches, reloadRankings }) {
-  const items = [
-    ["home", Home, "Hoje"],
-    ["players", UsersRound, "Jogadores"],
-    ["history", CalendarDays, "Historico"],
-    ["rankings", Trophy, "Ranking"],
-    ["profile", CircleUserRound, "Perfil"],
-  ];
-  return h(
-    "aside",
-    { className: "sidebar" },
-    h("div", { className: "brand" }, h("img", { src: "/static/pelapan-logo.png", alt: "" }), h("strong", null, "Pelada Manager"), h("span", null, session.pelada.name)),
-    h(
-      "nav",
-      null,
-      items.map(([key, Icon, label]) =>
-        h(
-          "button",
-          {
-            key,
-            className: view === key ? "active" : "",
-            onClick: () => {
-              setView(key);
-              if (key === "history") reloadMatches();
-              if (key === "rankings") reloadRankings();
-            },
-            type: "button",
-          },
-          h(Icon, { size: 20 }),
-          label,
-        ),
-      ),
-    ),
-    h("button", { className: "logout-button", onClick: logout, type: "button" }, h(LogOut, { size: 18 }), "Sair"),
-  );
-}
-
-function Header({ session, active, total, revenue, teams }) {
-  return h(
-    "header",
-    { className: "top-summary" },
-    h("div", { className: "summary-title" }, h("img", { src: "/static/pelapan-logo.png", alt: "" }), h("div", null, h("p", { className: "eyebrow" }, "Pelada de hoje"), h("h1", null, session.pelada.name), h("span", null, `${session.pelada.location || "Local nao informado"} - ${session.pelada.match_time || "20:00"}`))),
-    h(
-      "div",
-      { className: "metric-strip" },
-      h(Metric, { icon: UsersRound, label: "Confirmados", value: active }),
-      h(Metric, { icon: ListFilter, label: "Jogadores", value: total }),
-      h(Metric, { icon: Sparkles, label: "Times", value: teams }),
-      h(Metric, { icon: Banknote, label: "Arrecadacao", value: `R$ ${revenue}` }),
-    ),
-  );
-}
-
-function Metric({ icon: Icon, label, value }) {
-  return h("article", { className: "metric" }, h(Icon, { size: 19 }), h("strong", null, value), h("span", null, label));
-}
-
-function HomeView({ session, players, teams, setTeams, setShareMatch, setView, reloadMatches, flash, handleError }) {
-  const [playersPerTeam, setPlayersPerTeam] = useState(5);
-  const active = players.filter((player) => player.is_active);
-
-  async function generate() {
-    try {
-      setTeams(await api.generateTeams(Number(playersPerTeam)));
-      flash("Times gerados com sucesso.");
-    } catch (error) {
-      setTeams(null);
-      handleError(error);
-    }
-  }
-
-  async function saveMatch() {
-    if (!teams?.teams?.length) return flash("Gere os times antes de salvar a pelada.", true);
-    const today = new Date().toISOString().slice(0, 10);
-    try {
-      const match = await api.createMatch({
-        date: today,
-        title: `Pelada ${formatDate(today)}`,
-        teams: teams.teams.map((team) => ({
-          name: team.name,
-          total_rating: team.total_rating,
-          is_team_of_the_week: false,
-          players: team.players.map((player) => ({ player_id: player.id, goals: 0, assists: 0 })),
-        })),
-      });
-      setShareMatch(match);
-      setView("share");
-      reloadMatches();
-      flash("Pelada salva no historico.");
-    } catch (error) {
-      handleError(error);
-    }
-  }
-
-  return h(
-    "div",
-    { className: "screen-grid" },
-    h(
-      "section",
-      { className: "action-panel" },
-      h("p", { className: "eyebrow" }, "Proximo jogo"),
-      h("h2", null, `${active.length} confirmados`),
-      h("p", null, `${formatBilling(session.pelada.default_billing_type)} - ${session.pelada.location || "Local em aberto"}`),
-      h("label", null, "Jogadores por time", h("input", { type: "number", min: 1, max: 30, value: playersPerTeam, onChange: (event) => setPlayersPerTeam(event.target.value) })),
-      h("button", { className: "primary-action", onClick: generate, type: "button" }, h(Sparkles, { size: 19 }), "Gerar times"),
-      teams && h("button", { className: "secondary-action", onClick: saveMatch, type: "button" }, "Salvar pelada"),
-      h("div", { className: "quick-actions" }, h("button", { onClick: () => setView("players"), type: "button" }, h(UsersRound, { size: 18 }), "Jogadores"), h("button", { onClick: () => { reloadMatches(); setView("history"); }, type: "button" }, h(CalendarDays, { size: 18 }), "Historico")),
-    ),
-    h("section", { className: "teams-area" }, teams ? h(TeamsResult, { teams }) : h(EmptyState, { title: "Times ainda nao gerados", text: "Confirme os jogadores e gere times equilibrados para a rodada." })),
-  );
-}
-
-function PlayersView({ players, reloadPlayers, flash, handleError, defaultBilling }) {
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("all");
-  const [editing, setEditing] = useState(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const filtered = useMemo(
-    () =>
-      players.filter((player) => {
-        const byFilter = filter === "all" || (filter === "confirmed" && player.is_active) || (filter === "pending" && !player.is_active);
-        return byFilter && player.name.toLowerCase().includes(query.trim().toLowerCase());
-      }),
-    [players, query, filter],
-  );
-
-  async function savePlayer(payload) {
-    try {
-      editing ? await api.updatePlayer(editing.id, payload) : await api.createPlayer(payload);
-      setSheetOpen(false);
-      setEditing(null);
-      reloadPlayers();
-      flash(editing ? "Jogador atualizado." : "Jogador cadastrado.");
-    } catch (error) {
-      handleError(error);
-    }
-  }
-
-  return h(
-    "section",
-    { className: "view-stack" },
-    h("div", { className: "toolbar" }, h("div", null, h("p", { className: "eyebrow" }, "Elenco"), h("h2", null, "Jogadores")), h("button", { className: "primary-action compact", onClick: () => setSheetOpen(true), type: "button" }, h(Plus, { size: 18 }), "Novo")),
-    h("label", { className: "search-field" }, h(Search, { size: 18 }), h("input", { placeholder: "Buscar jogador...", value: query, onChange: (event) => setQuery(event.target.value) })),
-    h("div", { className: "chip-row" }, ["all", "confirmed", "pending"].map((item) => h("button", { key: item, className: filter === item ? "active" : "", onClick: () => setFilter(item), type: "button" }, item === "all" ? "Todos" : item === "confirmed" ? "Confirmados" : "Pendentes"))),
-    h(
-      "div",
-      { className: "player-list" },
-      filtered.map((player) =>
-        h(
-          "article",
-          { className: "player-card", key: player.id },
-          h("span", { className: "avatar" }, initials(player.name)),
-          h("div", { className: "player-body" }, h("strong", null, player.name), h("div", { className: "meta-line" }, h("span", null, formatPosition(player.position)), h("span", null, `Rating ${formatRating(player.rating)}`), h("span", null, formatBilling(player.billing_type)), h("span", { className: player.has_paid ? "good" : "warn" }, player.has_paid ? "Pago" : "Pendente"))),
-          h("button", { className: `check-button ${player.is_active ? "checked" : ""}`, onClick: async () => { try { await api.togglePlayer(player.id); reloadPlayers(); } catch (error) { handleError(error); } }, type: "button" }, player.is_active && h(Check, { size: 17 })),
-          h("div", { className: "card-actions" }, h("button", { onClick: () => { setEditing(player); setSheetOpen(true); }, type: "button" }, "Editar"), h("button", { className: "danger-text", onClick: async () => { if (!window.confirm(`Excluir ${player.name}?`)) return; try { await api.deletePlayer(player.id); reloadPlayers(); flash("Jogador excluido."); } catch (error) { handleError(error); } }, type: "button" }, "Excluir")),
-        ),
-      ),
-    ),
-    !filtered.length && h(EmptyState, { title: "Nenhum jogador encontrado", text: "Ajuste a busca ou cadastre um novo jogador." }),
-    h("button", { className: "fab", onClick: () => setSheetOpen(true), type: "button" }, h(Plus, null)),
-    sheetOpen && h(PlayerSheet, { player: editing, defaultBilling, onClose: () => { setSheetOpen(false); setEditing(null); }, onSave: savePlayer }),
-  );
-}
-
-function PlayerSheet({ player, defaultBilling, onClose, onSave }) {
-  const [payload, setPayload] = useState({
-    name: player?.name || "",
-    position: player?.position || "meio",
-    rating: Number(player?.rating || 3),
-    billing_type: player?.billing_type || defaultBilling || "diarista",
-    has_paid: Boolean(player?.has_paid),
-    whatsapp: player?.whatsapp || "",
-    is_active: Boolean(player?.is_active),
   });
-  const update = (key, value) => setPayload((current) => ({ ...current, [key]: value }));
-
-  return h(
-    "div",
-    { className: "modal-layer" },
-    h("button", { className: "modal-backdrop", onClick: onClose, type: "button" }),
-    h(
-      "form",
-      { className: "sheet", onSubmit: (event) => { event.preventDefault(); onSave(payload); } },
-      h("header", null, h("h2", null, player ? "Editar jogador" : "Novo jogador"), h("button", { onClick: onClose, type: "button" }, h(X, { size: 20 }))),
-      h("label", null, "Nome", h("input", { value: payload.name, required: true, maxLength: 120, onChange: (event) => update("name", event.target.value) })),
-      h("div", { className: "form-pair" }, h("label", null, "Posicao", h("select", { value: payload.position, onChange: (event) => update("position", event.target.value) }, h("option", { value: "defesa" }, "Defesa"), h("option", { value: "meio" }, "Meio"), h("option", { value: "ataque" }, "Ataque"))), h("label", null, "Rating", h("input", { type: "number", min: 0, max: 5, step: 0.1, value: payload.rating, onChange: (event) => update("rating", Number(event.target.value)) }))),
-      h("div", { className: "form-pair" }, h("label", null, "Cobranca", h("select", { value: payload.billing_type, onChange: (event) => update("billing_type", event.target.value) }, h("option", { value: "diarista" }, "Diarista"), h("option", { value: "mensalista" }, "Mensalista"))), h("label", null, "WhatsApp", h("input", { value: payload.whatsapp, maxLength: 30, onChange: (event) => update("whatsapp", event.target.value) }))),
-      h("label", { className: "switch-row" }, h("input", { type: "checkbox", checked: payload.is_active, onChange: (event) => update("is_active", event.target.checked) }), "Confirmado para hoje"),
-      h("label", { className: "switch-row" }, h("input", { type: "checkbox", checked: payload.has_paid, onChange: (event) => update("has_paid", event.target.checked) }), "Pagamento em dia"),
-      h("button", { className: "primary-action" }, "Salvar jogador"),
-    ),
-  );
 }
 
-function TeamsResult({ teams }) {
-  return h(
-    "div",
-    { className: "teams-grid" },
-    teams.teams.map((team, index) =>
-      h("article", { className: "team-card", key: `${team.name}-${index}` }, h("header", null, h("div", null, h("span", null, `Time ${index + 1}`), h("h3", null, team.name)), h("strong", null, formatRating(team.total_rating))), h("ol", null, team.players.map((player) => h("li", { key: player.id }, h("span", { className: "mini-avatar" }, initials(player.name)), h("div", null, h("strong", null, player.name), h("small", null, `${formatPosition(player.position)} - Rating ${formatRating(player.rating)}`)))))),
-    ),
-  );
+function sidebarHtml() {
+  return `
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="/static/pelapan-logo.png" alt="">
+        <strong>Pelada Manager</strong>
+        <span>${esc(state.session.pelada.name)}</span>
+      </div>
+      <nav>${navButtonsHtml()}</nav>
+      <button class="logout-button" data-action="logout" type="button">Sair</button>
+    </aside>
+  `;
 }
 
-function HistoryView({ matches, reloadMatches, setShareMatch, setView, flash, handleError }) {
-  useEffect(() => { reloadMatches(); }, []);
-  return h(
-    "section",
-    { className: "view-stack" },
-    h("div", { className: "toolbar" }, h("div", null, h("p", { className: "eyebrow" }, "Rodadas"), h("h2", null, "Historico")), h("button", { className: "secondary-action compact", onClick: reloadMatches, type: "button" }, "Atualizar")),
-    matches.map((match) =>
-      h("article", { className: "match-card", key: match.id }, h("div", null, h("h3", null, match.title), h("p", null, `${formatDate(match.date)} - ${match.team_count} times - ${match.player_count} jogadores`)), h("div", { className: "row-actions" }, h("button", { onClick: async () => { try { setShareMatch(await api.match(match.id)); setView("share"); } catch (error) { handleError(error); } }, type: "button" }, "Print"), h("button", { className: "danger-text", onClick: async () => { if (!window.confirm("Excluir esta pelada?")) return; try { await api.deleteMatch(match.id); reloadMatches(); flash("Pelada excluida."); } catch (error) { handleError(error); } }, type: "button" }, "Excluir"))),
-    ),
-    !matches.length && h(EmptyState, { title: "Sem peladas salvas", text: "Depois de gerar e salvar times, o historico aparece aqui." }),
-  );
-}
-
-function RankingsView({ rankings, reloadRankings }) {
-  useEffect(() => { reloadRankings(); }, []);
-  return h("section", { className: "view-stack" }, h("div", { className: "toolbar" }, h("div", null, h("p", { className: "eyebrow" }, "Performance"), h("h2", null, "Rankings")), h("button", { className: "secondary-action compact", onClick: reloadRankings, type: "button" }, "Atualizar")), rankings ? h("div", { className: "ranking-grid" }, h(RankingCard, { title: "Artilheiros", players: rankings.scorers.players, field: "goals" }), h(RankingCard, { title: "Assistencias", players: rankings.assists.players, field: "assists" })) : h(EmptyState, { title: "Ranking ainda vazio", text: "Salve estatisticas no historico para montar a tabela." }));
-}
-
-function RankingCard({ title, players, field }) {
-  return h("article", { className: "ranking-card" }, h("header", null, h("h3", null, title), h(Trophy, { size: 20 })), players.length ? h("div", { className: "ranking-list" }, players.map((player, index) => h("div", { className: "ranking-row", key: player.player_id }, h("span", { className: "rank" }, index + 1), h("div", null, h("strong", null, player.name), h("small", null, `${formatPosition(player.position)} - ${player.matches_played} jogos`)), h("strong", null, player[field])))) : h(EmptyState, { title: "Sem dados", text: "Ainda nao ha estatisticas suficientes." }));
-}
-
-function ProfileView({ session, setSession, flash, handleError, logout }) {
-  const [name, setName] = useState(session.pelada.name);
-  const [location, setLocation] = useState(session.pelada.location || "");
-  const [time, setTime] = useState(session.pelada.match_time || "20:00");
-  const [billing, setBilling] = useState(session.pelada.default_billing_type || "diarista");
-  return h("section", { className: "profile-panel" }, h("p", { className: "eyebrow" }, "Configuracoes"), h("h2", null, "Perfil da pelada"), h("form", { className: "form-grid", onSubmit: async (event) => { event.preventDefault(); try { const me = await api.updatePelada({ name, location, match_time: time, default_billing_type: billing }); setSession(me); flash("Configuracoes salvas."); } catch (error) { handleError(error); } } }, h("label", null, "Nome da pelada", h("input", { value: name, required: true, onChange: (event) => setName(event.target.value) })), h("label", null, "Local", h("input", { value: location, onChange: (event) => setLocation(event.target.value) })), h("div", { className: "form-pair" }, h("label", null, "Horario", h("input", { value: time, onChange: (event) => setTime(event.target.value) })), h("label", null, "Cobranca padrao", h("select", { value: billing, onChange: (event) => setBilling(event.target.value) }, h("option", { value: "diarista" }, "Diarista"), h("option", { value: "mensalista" }, "Mensalista")))), h("button", { className: "primary-action" }, "Salvar configuracoes")), h("button", { className: "danger-action", onClick: logout, type: "button" }, h(LogOut, { size: 18 }), "Sair da conta"));
-}
-
-function ShareView({ match, setView }) {
-  if (!match) return h(EmptyState, { title: "Nenhum print selecionado", text: "Salve uma pelada ou escolha uma rodada no historico." });
-  return h("section", { className: "share-screen" }, h("div", { className: "toolbar no-print" }, h("button", { className: "secondary-action compact", onClick: () => setView("history"), type: "button" }, "Historico"), h("button", { className: "primary-action compact", onClick: () => window.print(), type: "button" }, h(Printer, { size: 18 }), "Imprimir")), h("div", { className: "share-sheet" }, h("header", null, h("div", null, h("p", null, "Pelada Manager"), h("h1", null, match.title), h("span", null, formatDate(match.date))), h("strong", null, `${match.teams.length} times`)), h("div", { className: "share-team-grid" }, match.teams.map((team, index) => h("article", { key: team.id }, h("h2", null, `Time ${index + 1}: ${team.name}`), h("ol", null, team.players.map((player, playerIndex) => h("li", { key: player.id }, h("span", null, playerIndex + 1), h("strong", null, player.player.name), h("small", null, formatPosition(player.player.position)))))))));
-}
-
-function BottomNav({ view, setView, reloadMatches, reloadRankings }) {
+function navButtonsHtml() {
   const items = [
-    ["home", Home, "Inicio"],
-    ["players", UsersRound, "Jogadores"],
-    ["history", CalendarDays, "Historico"],
-    ["rankings", Trophy, "Ranking"],
-    ["profile", CircleUserRound, "Perfil"],
+    ["home", icons.home, "Hoje"],
+    ["players", icons.users, "Jogadores"],
+    ["history", icons.calendar, "Historico"],
+    ["rankings", icons.trophy, "Ranking"],
+    ["profile", icons.user, "Perfil"],
   ];
-  return h("nav", { className: "bottom-nav" }, items.map(([key, Icon, label]) => h("button", { key, className: view === key ? "active" : "", onClick: () => { setView(key); if (key === "history") reloadMatches(); if (key === "rankings") reloadRankings(); }, type: "button" }, h(Icon, { size: 21 }), h("span", null, label))));
+  return items.map(([view, icon, label]) => `<button class="${state.view === view ? "active" : ""}" data-view="${view}" type="button">${icon}${label}</button>`).join("");
 }
 
-function Field({ label, ...props }) {
-  return h("label", null, label, h("input", props));
+function bottomNavHtml() {
+  return `<nav class="bottom-nav">${navButtonsHtml()}</nav>`;
 }
 
-function EmptyState({ title, text }) {
-  return h("div", { className: "empty-state" }, h(ListFilter, { size: 24 }), h("strong", null, title), h("span", null, text));
+function headerHtml() {
+  const active = state.players.filter((player) => player.is_active);
+  const revenue = active.filter((player) => player.billing_type === "diarista").length * 20;
+  return `
+    <header class="top-summary">
+      <div class="summary-title">
+        <img src="/static/pelapan-logo.png" alt="">
+        <div>
+          <p class="eyebrow">Pelada de hoje</p>
+          <h1>${esc(state.session.pelada.name)}</h1>
+          <span>${esc(state.session.pelada.location || "Local nao informado")} - ${esc(state.session.pelada.match_time || "20:00")}</span>
+        </div>
+      </div>
+      <div class="metric-strip">
+        ${metricHtml(icons.users, active.length, "Confirmados")}
+        ${metricHtml(icons.home, state.players.length, "Jogadores")}
+        ${metricHtml(icons.sparkles, state.teams?.team_count || 0, "Times")}
+        ${metricHtml(icons.money, `R$ ${revenue}`, "Arrecadacao")}
+      </div>
+    </header>
+  `;
 }
 
-createRoot(document.getElementById("root")).render(h(App));
+function metricHtml(icon, value, label) {
+  return `<article class="metric">${icon}<strong>${esc(value)}</strong><span>${esc(label)}</span></article>`;
+}
+
+function viewHtml() {
+  if (state.view === "players") return playersHtml();
+  if (state.view === "history") return historyHtml();
+  if (state.view === "rankings") return rankingsHtml();
+  if (state.view === "profile") return profileHtml();
+  if (state.view === "share") return shareHtml();
+  return homeHtml();
+}
+
+function homeHtml() {
+  const active = state.players.filter((player) => player.is_active);
+  return `
+    <div class="screen-grid">
+      <section class="action-panel">
+        <p class="eyebrow">Proximo jogo</p>
+        <h2>${active.length} confirmados</h2>
+        <p>${fmtBilling(state.session.pelada.default_billing_type)} - ${esc(state.session.pelada.location || "Local em aberto")}</p>
+        <label>Jogadores por time<input id="playersPerTeam" type="number" min="1" max="30" value="5"></label>
+        <button class="primary-action" data-action="generate" type="button">${icons.sparkles}Gerar times</button>
+        ${state.teams ? `<button class="secondary-action" data-action="save-match" type="button">Salvar pelada</button>` : ""}
+        <div class="quick-actions">
+          <button data-view="players" type="button">${icons.users}Jogadores</button>
+          <button data-view="history" type="button">${icons.calendar}Historico</button>
+        </div>
+      </section>
+      <section class="teams-area">
+        ${state.teams ? teamsHtml(state.teams) : emptyHtml("Times ainda nao gerados", "Confirme os jogadores e gere times equilibrados para a rodada.")}
+      </section>
+    </div>
+  `;
+}
+
+function teamsHtml(result) {
+  return `
+    <div class="teams-grid">
+      ${result.teams
+        .map(
+          (team, index) => `
+          <article class="team-card">
+            <header><div><span>Time ${index + 1}</span><h3>${esc(team.name)}</h3></div><strong>${fmtRating(team.total_rating)}</strong></header>
+            <ol>${team.players
+              .map(
+                (player) => `
+                  <li><span class="mini-avatar">${esc(initials(player.name))}</span><div><strong>${esc(player.name)}</strong><small>${fmtPos(player.position)} - Rating ${fmtRating(player.rating)}</small></div></li>
+                `,
+              )
+              .join("")}</ol>
+          </article>
+        `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function playersHtml() {
+  return `
+    <section class="view-stack">
+      <div class="toolbar"><div><p class="eyebrow">Elenco</p><h2>Jogadores</h2></div><button class="primary-action compact" data-action="open-player-form" type="button">${icons.plus}Novo</button></div>
+      <label class="search-field"><span>Buscar</span><input id="playerSearch" placeholder="Buscar jogador..."></label>
+      <div class="chip-row">
+        <button class="active" data-filter="all" type="button">Todos</button>
+        <button data-filter="confirmed" type="button">Confirmados</button>
+        <button data-filter="pending" type="button">Pendentes</button>
+      </div>
+      <div id="playersContainer" class="player-list">${playerCardsHtml(state.players)}</div>
+      <button class="fab" data-action="open-player-form" type="button">${icons.plus}</button>
+    </section>
+  `;
+}
+
+function playerCardsHtml(players) {
+  if (!players.length) return emptyHtml("Nenhum jogador encontrado", "Cadastre o primeiro jogador da sua pelada.");
+  return players
+    .map(
+      (player) => `
+        <article class="player-card">
+          <span class="avatar">${esc(initials(player.name))}</span>
+          <div class="player-body">
+            <strong>${esc(player.name)}</strong>
+            <div class="meta-line">
+              <span>${fmtPos(player.position)}</span>
+              <span>Rating ${fmtRating(player.rating)}</span>
+              <span>${fmtBilling(player.billing_type)}</span>
+              <span class="${player.has_paid ? "good" : "warn"}">${player.has_paid ? "Pago" : "Pendente"}</span>
+            </div>
+          </div>
+          <button class="check-button ${player.is_active ? "checked" : ""}" data-toggle-player="${player.id}" type="button">${player.is_active ? icons.check : ""}</button>
+          <div class="card-actions">
+            <button data-edit-player="${player.id}" type="button">Editar</button>
+            <button class="danger-text" data-delete-player="${player.id}" type="button">Excluir</button>
+          </div>
+        </article>
+      `,
+    )
+    .join("");
+}
+
+function historyHtml() {
+  return `
+    <section class="view-stack">
+      <div class="toolbar"><div><p class="eyebrow">Rodadas</p><h2>Historico</h2></div><button class="secondary-action compact" data-action="reload-matches" type="button">Atualizar</button></div>
+      ${state.matches.length ? state.matches.map(matchCardHtml).join("") : emptyHtml("Sem peladas salvas", "Depois de gerar e salvar times, o historico aparece aqui.")}
+    </section>
+  `;
+}
+
+function matchCardHtml(match) {
+  return `
+    <article class="match-card">
+      <div><h3>${esc(match.title)}</h3><p>${fmtDate(match.date)} - ${match.team_count} times - ${match.player_count} jogadores</p></div>
+      <div class="row-actions">
+        <button data-share-match="${match.id}" type="button">Print</button>
+        <button class="danger-text" data-delete-match="${match.id}" type="button">Excluir</button>
+      </div>
+    </article>
+  `;
+}
+
+function rankingsHtml() {
+  if (!state.rankings) return `<section class="view-stack">${emptyHtml("Ranking ainda vazio", "Salve estatisticas no historico para montar a tabela.")}</section>`;
+  return `
+    <section class="view-stack">
+      <div class="toolbar"><div><p class="eyebrow">Performance</p><h2>Rankings</h2></div><button class="secondary-action compact" data-action="reload-rankings" type="button">Atualizar</button></div>
+      <div class="ranking-grid">
+        ${rankingCardHtml("Artilheiros", state.rankings.scorers.players, "goals")}
+        ${rankingCardHtml("Assistencias", state.rankings.assists.players, "assists")}
+      </div>
+    </section>
+  `;
+}
+
+function rankingCardHtml(title, players, field) {
+  return `
+    <article class="ranking-card">
+      <header><h3>${esc(title)}</h3>${icons.trophy}</header>
+      ${players.length ? players.map((player, index) => `<div class="ranking-row"><span class="rank">${index + 1}</span><div><strong>${esc(player.name)}</strong><small>${fmtPos(player.position)} - ${player.matches_played} jogos</small></div><strong>${player[field]}</strong></div>`).join("") : emptyHtml("Sem dados", "Ainda nao ha estatisticas suficientes.")}
+    </article>
+  `;
+}
+
+function profileHtml() {
+  const pelada = state.session.pelada;
+  return `
+    <section class="profile-panel">
+      <p class="eyebrow">Configuracoes</p>
+      <h2>Perfil da pelada</h2>
+      <form id="profileForm" class="form-grid">
+        <label>Nome da pelada<input name="name" value="${esc(pelada.name)}" required></label>
+        <label>Local<input name="location" value="${esc(pelada.location || "")}"></label>
+        <div class="form-pair">
+          <label>Horario<input name="match_time" value="${esc(pelada.match_time || "20:00")}"></label>
+          <label>Cobranca padrao<select name="default_billing_type"><option value="diarista" ${pelada.default_billing_type === "diarista" ? "selected" : ""}>Diarista</option><option value="mensalista" ${pelada.default_billing_type === "mensalista" ? "selected" : ""}>Mensalista</option></select></label>
+        </div>
+        <button class="primary-action">Salvar configuracoes</button>
+      </form>
+      <button class="danger-action" data-action="logout" type="button">Sair da conta</button>
+    </section>
+  `;
+}
+
+function shareHtml() {
+  if (!state.shareMatch) return emptyHtml("Nenhum print selecionado", "Salve uma pelada ou escolha uma rodada no historico.");
+  return `
+    <section class="share-screen">
+      <div class="toolbar no-print"><button class="secondary-action compact" data-view="history" type="button">Historico</button><button class="primary-action compact" data-action="print" type="button">Imprimir</button></div>
+      <div class="share-sheet">
+        <header><div><p>Pelada Manager</p><h1>${esc(state.shareMatch.title)}</h1><span>${fmtDate(state.shareMatch.date)}</span></div><strong>${state.shareMatch.teams.length} times</strong></header>
+        <div class="share-team-grid">
+          ${state.shareMatch.teams
+            .map(
+              (team, index) => `
+                <article><h2>Time ${index + 1}: ${esc(team.name)}</h2><ol>${team.players.map((item, itemIndex) => `<li><span>${itemIndex + 1}</span><strong>${esc(item.player.name)}</strong><small>${fmtPos(item.player.position)}</small></li>`).join("")}</ol></article>
+              `,
+            )
+            .join("")}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function emptyHtml(title, text) {
+  return `<div class="empty-state">${icons.home}<strong>${esc(title)}</strong><span>${esc(text)}</span></div>`;
+}
+
+function playerFormHtml(player = null) {
+  const payload = player || { name: "", position: "meio", rating: 3, billing_type: state.session.pelada.default_billing_type || "diarista", has_paid: false, whatsapp: "", is_active: false };
+  return `
+    <div class="modal-layer">
+      <button class="modal-backdrop" data-action="close-modal" type="button"></button>
+      <form id="playerForm" class="sheet" data-player-id="${player?.id || ""}">
+        <header><h2>${player ? "Editar jogador" : "Novo jogador"}</h2><button data-action="close-modal" type="button">x</button></header>
+        <label>Nome<input name="name" value="${esc(payload.name)}" required maxlength="120"></label>
+        <div class="form-pair">
+          <label>Posicao<select name="position"><option value="defesa" ${payload.position === "defesa" ? "selected" : ""}>Defesa</option><option value="meio" ${payload.position === "meio" ? "selected" : ""}>Meio</option><option value="ataque" ${payload.position === "ataque" ? "selected" : ""}>Ataque</option></select></label>
+          <label>Rating<input name="rating" type="number" min="0" max="5" step="0.1" value="${payload.rating}"></label>
+        </div>
+        <div class="form-pair">
+          <label>Cobranca<select name="billing_type"><option value="diarista" ${payload.billing_type === "diarista" ? "selected" : ""}>Diarista</option><option value="mensalista" ${payload.billing_type === "mensalista" ? "selected" : ""}>Mensalista</option></select></label>
+          <label>WhatsApp<input name="whatsapp" value="${esc(payload.whatsapp || "")}" maxlength="30"></label>
+        </div>
+        <label class="switch-row"><input name="is_active" type="checkbox" ${payload.is_active ? "checked" : ""}>Confirmado para hoje</label>
+        <label class="switch-row"><input name="has_paid" type="checkbox" ${payload.has_paid ? "checked" : ""}>Pagamento em dia</label>
+        <button class="primary-action">Salvar jogador</button>
+      </form>
+    </div>
+  `;
+}
+
+function bindApp() {
+  document.querySelectorAll("[data-view]").forEach((button) => button.addEventListener("click", () => setView(button.dataset.view)));
+  document.querySelectorAll("[data-action='logout']").forEach((button) => button.addEventListener("click", logout));
+  document.querySelector("[data-action='generate']")?.addEventListener("click", generateTeams);
+  document.querySelector("[data-action='save-match']")?.addEventListener("click", saveMatch);
+  document.querySelector("[data-action='reload-matches']")?.addEventListener("click", loadMatches);
+  document.querySelector("[data-action='reload-rankings']")?.addEventListener("click", loadRankings);
+  document.querySelector("[data-action='print']")?.addEventListener("click", () => window.print());
+  document.querySelectorAll("[data-action='open-player-form']").forEach((button) => button.addEventListener("click", () => openPlayerForm()));
+  document.querySelectorAll("[data-toggle-player]").forEach((button) => button.addEventListener("click", () => togglePlayer(Number(button.dataset.togglePlayer))));
+  document.querySelectorAll("[data-edit-player]").forEach((button) => button.addEventListener("click", () => openPlayerForm(Number(button.dataset.editPlayer))));
+  document.querySelectorAll("[data-delete-player]").forEach((button) => button.addEventListener("click", () => deletePlayer(Number(button.dataset.deletePlayer))));
+  document.querySelectorAll("[data-share-match]").forEach((button) => button.addEventListener("click", () => shareMatch(Number(button.dataset.shareMatch))));
+  document.querySelectorAll("[data-delete-match]").forEach((button) => button.addEventListener("click", () => deleteMatch(Number(button.dataset.deleteMatch))));
+  document.querySelector("#profileForm")?.addEventListener("submit", saveProfile);
+  bindPlayerFilters();
+}
+
+function bindPlayerFilters() {
+  const search = document.querySelector("#playerSearch");
+  if (!search) return;
+  let filter = "all";
+  const refresh = () => {
+    const query = search.value.trim().toLowerCase();
+    const filtered = state.players.filter((player) => {
+      const byFilter = filter === "all" || (filter === "confirmed" && player.is_active) || (filter === "pending" && !player.is_active);
+      return byFilter && player.name.toLowerCase().includes(query);
+    });
+    document.querySelector("#playersContainer").innerHTML = playerCardsHtml(filtered);
+    bindApp();
+  };
+  search.addEventListener("input", refresh);
+  document.querySelectorAll("[data-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      filter = button.dataset.filter;
+      document.querySelectorAll("[data-filter]").forEach((item) => item.classList.toggle("active", item === button));
+      refresh();
+    });
+  });
+}
+
+async function logout() {
+  await api.logout().catch(() => null);
+  state.session = null;
+  state.players = [];
+  state.teams = null;
+  render();
+}
+
+async function generateTeams() {
+  try {
+    state.teams = await api.generateTeams(Number(document.querySelector("#playersPerTeam").value || 5));
+    flash("Times gerados com sucesso.");
+  } catch (error) {
+    state.teams = null;
+    flash(error.message, true);
+  }
+}
+
+async function saveMatch() {
+  if (!state.teams?.teams?.length) return flash("Gere os times antes de salvar a pelada.", true);
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    const match = await api.createMatch({
+      date: today,
+      title: `Pelada ${fmtDate(today)}`,
+      teams: state.teams.teams.map((team) => ({
+        name: team.name,
+        total_rating: team.total_rating,
+        is_team_of_the_week: false,
+        players: team.players.map((player) => ({ player_id: player.id, goals: 0, assists: 0 })),
+      })),
+    });
+    state.shareMatch = match;
+    state.view = "share";
+    await loadMatches();
+    flash("Pelada salva no historico.");
+  } catch (error) {
+    flash(error.message, true);
+  }
+}
+
+function openPlayerForm(id = null) {
+  const player = id ? state.players.find((item) => item.id === id) : null;
+  document.body.insertAdjacentHTML("beforeend", playerFormHtml(player));
+  document.querySelectorAll("[data-action='close-modal']").forEach((button) => button.addEventListener("click", closeModal));
+  document.querySelector("#playerForm").addEventListener("submit", savePlayer);
+}
+
+function closeModal() {
+  document.querySelector(".modal-layer")?.remove();
+}
+
+async function savePlayer(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  const payload = {
+    name: data.get("name"),
+    position: data.get("position"),
+    rating: Number(data.get("rating")),
+    billing_type: data.get("billing_type"),
+    has_paid: data.get("has_paid") === "on",
+    whatsapp: data.get("whatsapp") || "",
+    is_active: data.get("is_active") === "on",
+  };
+  try {
+    const id = form.dataset.playerId;
+    id ? await api.updatePlayer(Number(id), payload) : await api.createPlayer(payload);
+    closeModal();
+    await loadPlayers();
+    flash(id ? "Jogador atualizado." : "Jogador cadastrado.");
+  } catch (error) {
+    flash(error.message, true);
+  }
+}
+
+async function togglePlayer(id) {
+  try {
+    await api.togglePlayer(id);
+    await loadPlayers();
+  } catch (error) {
+    flash(error.message, true);
+  }
+}
+
+async function deletePlayer(id) {
+  const player = state.players.find((item) => item.id === id);
+  if (!window.confirm(`Excluir ${player?.name || "jogador"}?`)) return;
+  try {
+    await api.deletePlayer(id);
+    await loadPlayers();
+    flash("Jogador excluido.");
+  } catch (error) {
+    flash(error.message, true);
+  }
+}
+
+async function shareMatch(id) {
+  try {
+    state.shareMatch = await api.match(id);
+    state.view = "share";
+    render();
+  } catch (error) {
+    flash(error.message, true);
+  }
+}
+
+async function deleteMatch(id) {
+  if (!window.confirm("Excluir esta pelada?")) return;
+  try {
+    await api.deleteMatch(id);
+    await loadMatches();
+    flash("Pelada excluida.");
+  } catch (error) {
+    flash(error.message, true);
+  }
+}
+
+async function saveProfile(event) {
+  event.preventDefault();
+  const data = new FormData(event.currentTarget);
+  try {
+    state.session = await api.updatePelada({
+      name: data.get("name"),
+      location: data.get("location") || "",
+      match_time: data.get("match_time") || "20:00",
+      default_billing_type: data.get("default_billing_type"),
+    });
+    flash("Configuracoes salvas.");
+  } catch (error) {
+    flash(error.message, true);
+  }
+}
+
+init();

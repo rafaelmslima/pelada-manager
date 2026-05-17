@@ -1,8 +1,11 @@
-const CACHE_NAME = "pelada-manager-v4-react";
+const CACHE_NAME = "pelada-manager-v5-local-ui";
 const CORE_ASSETS = [
   "/",
   "/static/pelapan-logo.png",
   "/static/react/manifest.json",
+  "/static/react/index.html",
+  "/static/react/app.css",
+  "/static/react/app.js",
 ];
 
 self.addEventListener("install", (event) => {
