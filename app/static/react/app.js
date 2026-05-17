@@ -307,8 +307,74 @@ function viewHtml() {
 
 function homeHtml() {
   const active = state.players.filter((player) => player.is_active);
+  const pending = Math.max(state.players.length - active.length, 0);
+  const revenue = active.filter((player) => player.billing_type === "diarista").length * 20;
+  const vagas = Math.max(24, state.players.length);
   return `
-    <div class="screen-grid">
+    <section class="mobile-home-v2">
+      <div class="mobile-stat-row">
+        ${mobileStatHtml(icons.users, active.length, "Jogadores")}
+        ${mobileStatHtml(icons.home, vagas, "Vagas")}
+        ${mobileStatHtml(icons.money, `R$ ${revenue}`, "Arrecadado")}
+        ${mobileStatHtml(icons.check, active.length ? "Jogo" : "Lista", active.length ? "Confirmado" : "Aberta")}
+      </div>
+
+      <section class="mobile-section">
+        <h2>Sobre o jogo</h2>
+        <article class="game-info-card">
+          <div class="game-info-top">
+            <div class="game-info-item">
+              <span class="round-icon">${icons.calendar}</span>
+              <div><small>Horario</small><strong>Hoje, ${esc(state.session.pelada.match_time || "20:00")}</strong></div>
+            </div>
+            <div class="game-info-item">
+              <span class="round-icon">${icons.home}</span>
+              <div><small>Local</small><strong>${esc(state.session.pelada.location || "Local a definir")}</strong><em>${esc(state.session.pelada.name)}</em></div>
+            </div>
+          </div>
+          <div class="game-info-bottom">
+            <div><span class="mini-round">${icons.users}</span><small>Vagas restantes</small><strong>${Math.max(vagas - active.length, 0)}</strong></div>
+            <div><span class="mini-round success">${icons.check}</span><small>Confirmados</small><strong>${active.length}</strong></div>
+            <div><span class="mini-round warning">${icons.calendar}</span><small>Pendentes</small><strong>${pending}</strong></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="mobile-section">
+        <article class="confirmed-card">
+          <header><h2>Confirmados (${active.length})</h2><button data-view="players" type="button">Ver todos</button></header>
+          <div class="avatar-strip">
+            ${active.slice(0, 5).map((player) => `<span class="photo-avatar">${esc(initials(player.name))}<i>${icons.check}</i></span>`).join("")}
+            ${active.length > 5 ? `<span class="more-avatar">+${active.length - 5}</span>` : ""}
+            ${!active.length ? `<p>Ninguem confirmado ainda.</p>` : ""}
+          </div>
+        </article>
+      </section>
+
+      <section class="mobile-section">
+        <article class="quick-card">
+          <h2>Acoes rapidas</h2>
+          <div class="quick-grid">
+            <button data-view="players" type="button">${icons.check}<span>Confirmar<br>presenca</span></button>
+            <button data-view="players" type="button">${icons.plus}<span>Convidar<br>amigos</span></button>
+            <button data-view="players" type="button">${icons.users}<span>Ver<br>elenco</span></button>
+            <button data-view="profile" type="button">${icons.money}<span>Registrar<br>pagamento</span></button>
+          </div>
+        </article>
+      </section>
+
+      <article class="notice-card">
+        <span>${icons.calendar}</span>
+        <div><strong>Avisos da pelada</strong><p>Leve documento com foto. Pagamento via PIX. Chegue com 15 min de antecedencia.</p></div>
+      </article>
+
+      <button class="mobile-confirm-button" data-view="players" type="button">${icons.home}<span>Confirmar presenca</span></button>
+      <small class="confirm-hint">Confirme ate 18:30 de hoje</small>
+
+      ${state.teams ? `<section class="mobile-section mobile-teams-after-generate">${teamsHtml(state.teams)}</section>` : ""}
+    </section>
+
+    <div class="screen-grid desktop-home">
       <section class="action-panel">
         <p class="eyebrow">Proximo jogo</p>
         <h2>${active.length} confirmados</h2>
@@ -326,6 +392,10 @@ function homeHtml() {
       </section>
     </div>
   `;
+}
+
+function mobileStatHtml(icon, value, label) {
+  return `<article class="mobile-stat">${icon}<strong>${esc(value)}</strong><span>${esc(label)}</span></article>`;
 }
 
 function teamsHtml(result) {
