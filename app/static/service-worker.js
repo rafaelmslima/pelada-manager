@@ -1,4 +1,4 @@
-const CACHE_NAME = "pelada-manager-v5-local-ui";
+const CACHE_NAME = "pelada-manager-v6-minimal-ui";
 const CORE_ASSETS = [
   "/",
   "/static/pelapan-logo.png",

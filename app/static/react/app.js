@@ -264,9 +264,9 @@ function headerHtml() {
       </div>
       <div class="metric-strip">
         ${metricHtml(icons.users, active.length, "Confirmados")}
-        ${metricHtml(icons.home, state.players.length, "Jogadores")}
+        ${metricHtml(icons.home, state.players.length, "Cadastrados")}
         ${metricHtml(icons.sparkles, state.teams?.team_count || 0, "Times")}
-        ${metricHtml(icons.money, `R$ ${revenue}`, "Arrecadacao")}
+        ${metricHtml(icons.money, `R$ ${revenue}`, "Estimado")}
       </div>
     </header>
   `;
@@ -293,7 +293,7 @@ function homeHtml() {
         <p class="eyebrow">Proximo jogo</p>
         <h2>${active.length} confirmados</h2>
         <p>${fmtBilling(state.session.pelada.default_billing_type)} - ${esc(state.session.pelada.location || "Local em aberto")}</p>
-        <label>Jogadores por time<input id="playersPerTeam" type="number" min="1" max="30" value="5"></label>
+      <label>Jogadores por time<input id="playersPerTeam" type="number" min="1" max="30" value="5"></label>
         <button class="primary-action" data-action="generate" type="button">${icons.sparkles}Gerar times</button>
         ${state.teams ? `<button class="secondary-action" data-action="save-match" type="button">Salvar pelada</button>` : ""}
         <div class="quick-actions">
@@ -333,9 +333,9 @@ function teamsHtml(result) {
 
 function playersHtml() {
   return `
-    <section class="view-stack">
+    <section class="view-stack players-view">
       <div class="toolbar"><div><p class="eyebrow">Elenco</p><h2>Jogadores</h2></div><button class="primary-action compact" data-action="open-player-form" type="button">${icons.plus}Novo</button></div>
-      <label class="search-field"><span>Buscar</span><input id="playerSearch" placeholder="Buscar jogador..."></label>
+      <label class="search-field">${icons.users}<input id="playerSearch" placeholder="Buscar jogador..."></label>
       <div class="chip-row">
         <button class="active" data-filter="all" type="button">Todos</button>
         <button data-filter="confirmed" type="button">Confirmados</button>
