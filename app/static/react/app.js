@@ -272,6 +272,50 @@ function bottomNavHtml() {
 function headerHtml() {
   const active = state.players.filter((player) => player.is_active);
   const revenue = active.filter((player) => player.billing_type === "diarista").length * 20;
+  if (state.view === "profile") {
+    return `
+      <header class="profile-mobile-hero">
+        <h1>Perfil</h1>
+        <button type="button" aria-label="Notificacoes">${icons.calendar}</button>
+      </header>
+    `;
+  }
+  if (state.view === "history") {
+    return `
+      <header class="history-mobile-hero">
+        <img src="/static/pelapan-logo.png" alt="">
+        <div>
+          <h1>Historico</h1>
+          <p>${esc(state.session.pelada.name)} · ${esc(state.session.pelada.location || "Guga Soccer")}</p>
+        </div>
+      </header>
+    `;
+  }
+  if (state.view === "rankings") {
+    return `
+      <header class="ranking-mobile-hero">
+        <img src="/static/pelapan-logo.png" alt="">
+        <div>
+          <h1>${icons.trophy}Ranking</h1>
+          <p>Os destaques da nossa pelada ⚽</p>
+        </div>
+      </header>
+    `;
+  }
+  const metricConfig =
+    state.view === "players"
+      ? [
+          [icons.users, state.players.length, "Jogadores"],
+          [icons.home, Math.max(24, state.players.length), "Vagas"],
+          [icons.sparkles, 0, "Destaques"],
+          [icons.money, `R$ ${revenue}`, "Arrecadado"],
+        ]
+      : [
+          [icons.users, active.length, "Confirmados"],
+          [icons.home, state.players.length, "Cadastrados"],
+          [icons.sparkles, state.teams?.team_count || 0, "Times"],
+          [icons.money, `R$ ${revenue}`, "Estimado"],
+        ];
   return `
     <header class="top-summary">
       <div class="summary-title">
@@ -283,10 +327,7 @@ function headerHtml() {
         </div>
       </div>
       <div class="metric-strip">
-        ${metricHtml(icons.users, active.length, "Confirmados")}
-        ${metricHtml(icons.home, state.players.length, "Cadastrados")}
-        ${metricHtml(icons.sparkles, state.teams?.team_count || 0, "Times")}
-        ${metricHtml(icons.money, `R$ ${revenue}`, "Estimado")}
+        ${metricConfig.map(([icon, value, label]) => metricHtml(icon, value, label)).join("")}
       </div>
     </header>
   `;
@@ -424,8 +465,8 @@ function teamsHtml(result) {
 function playersHtml() {
   return `
     <section class="view-stack players-view">
-      <div class="toolbar"><div><p class="eyebrow">Elenco</p><h2>Jogadores</h2></div><button class="primary-action compact" data-action="open-player-form" type="button">${icons.plus}Novo</button></div>
-      <label class="search-field">${icons.users}<input id="playerSearch" placeholder="Buscar jogador..."></label>
+      <div class="toolbar players-toolbar"><div><h2>Jogadores</h2></div><button class="primary-action compact" data-action="open-player-form" type="button">${icons.plus}Novo</button></div>
+      <label class="search-field">${icons.users}<input id="playerSearch" placeholder="Buscar jogador..."><span class="filter-glyph">${icons.calendar}</span></label>
       <div class="chip-row">
         <button class="active" data-filter="all" type="button">Todos</button>
         <button data-filter="confirmed" type="button">Confirmados</button>
@@ -465,11 +506,61 @@ function playerCardsHtml(players) {
 }
 
 function historyHtml() {
+  const totalMatches = state.matches.length;
+  const totalPlayers = state.matches.reduce((sum, match) => sum + Number(match.player_count || 0), 0);
+  const avgPresence = totalMatches ? Math.round(totalPlayers / totalMatches) : 0;
+  const totalRevenue = totalPlayers * 20;
   return `
+    <section class="mobile-history-v2">
+      <div class="history-stat-row">
+        ${historyStatHtml(icons.calendar, totalMatches || 0, "Peladas")}
+        ${historyStatHtml(icons.users, `${avgPresence || 0}`, "Media presenca")}
+        ${historyStatHtml(icons.money, `R$ ${totalRevenue.toLocaleString("pt-BR")}`, "Arrecadacao total")}
+        ${historyStatHtml(icons.trophy, totalMatches || 0, "Vitorias")}
+      </div>
+      <div class="history-search-row">
+        <label>${icons.users}<input id="historySearch" placeholder="Buscar por pelada ou local..."></label>
+        <button type="button">${icons.calendar}</button>
+      </div>
+      <div class="history-filter-row">
+        <button class="active" data-history-filter="all" type="button">Todas</button>
+        <button data-history-filter="month" type="button">Este mes</button>
+        <button data-history-filter="older" type="button">Anteriores</button>
+      </div>
+      <div id="mobileHistoryList" class="history-card-list">
+        ${state.matches.length ? state.matches.map(mobileHistoryCardHtml).join("") : emptyHtml("Sem peladas salvas", "Depois de salvar uma pelada, ela aparece aqui.")}
+      </div>
+    </section>
     <section class="view-stack">
       <div class="toolbar"><div><p class="eyebrow">Rodadas</p><h2>Historico</h2></div><button class="secondary-action compact" data-action="reload-matches" type="button">Atualizar</button></div>
       ${state.matches.length ? state.matches.map(matchCardHtml).join("") : emptyHtml("Sem peladas salvas", "Depois de gerar e salvar times, o historico aparece aqui.")}
     </section>
+  `;
+}
+
+function historyStatHtml(icon, value, label) {
+  return `<article class="history-stat">${icon}<strong>${esc(value)}</strong><span>${esc(label)}</span></article>`;
+}
+
+function mobileHistoryCardHtml(match) {
+  const revenue = Number(match.player_count || 0) * 20;
+  return `
+    <article class="mobile-match-card" data-history-title="${esc(`${match.title} ${state.session.pelada.location || ""}`.toLowerCase())}">
+      <div class="match-card-top">
+        <span class="match-ball">⚽</span>
+        <div>
+          <h3>${esc(state.session.pelada.name || match.title)}</h3>
+          <p>${esc(state.session.pelada.location || "Guga Soccer")}</p>
+          <div class="match-meta"><span>${icons.calendar}${fmtDate(match.date)}</span><span>${icons.home}${esc(state.session.pelada.match_time || "19:30")}</span></div>
+        </div>
+        <strong>Finalizada</strong>
+      </div>
+      <div class="match-card-bottom">
+        <span>${icons.users}${match.player_count} jogadores</span>
+        <span>${icons.money}R$ ${revenue}</span>
+        <button data-share-match="${match.id}" type="button">Ver detalhes ›</button>
+      </div>
+    </article>
   `;
 }
 
@@ -487,7 +578,22 @@ function matchCardHtml(match) {
 
 function rankingsHtml() {
   if (!state.rankings) return `<section class="view-stack">${emptyHtml("Ranking ainda vazio", "Salve estatisticas no historico para montar a tabela.")}</section>`;
+  const players = buildRankingPlayers();
   return `
+    <section class="mobile-ranking-v2">
+      ${rankingHighlightsHtml(players)}
+      ${rankingPodiumHtml(players.slice(0, 3))}
+      <div class="ranking-filter-row">
+        <button class="active" type="button">Geral</button>
+        <button type="button">Mensal</button>
+        <button type="button">Ataque</button>
+        <button type="button">Defesa</button>
+        <button class="filter-button" type="button">${icons.calendar}Filtros</button>
+      </div>
+      <article class="ranking-list-card">
+        ${players.slice(3, 10).map(rankingListRowHtml).join("") || emptyHtml("Sem ranking completo", "Salve estatisticas para montar a lista.")}
+      </article>
+    </section>
     <section class="view-stack">
       <div class="toolbar"><div><p class="eyebrow">Performance</p><h2>Rankings</h2></div><button class="secondary-action compact" data-action="reload-rankings" type="button">Atualizar</button></div>
       <div class="ranking-grid">
@@ -495,6 +601,99 @@ function rankingsHtml() {
         ${rankingCardHtml("Assistencias", state.rankings.assists.players, "assists")}
       </div>
     </section>
+  `;
+}
+
+function buildRankingPlayers() {
+  const map = new Map();
+  const add = (player, extra = {}) => {
+    const current = map.get(player.player_id) || {
+      player_id: player.player_id,
+      name: player.name,
+      position: player.position,
+      rating: Number(player.rating || 0),
+      matches_played: player.matches_played || 0,
+      goals: 0,
+      assists: 0,
+      points: 0,
+    };
+    current.goals = Math.max(current.goals, player.goals || 0);
+    current.assists = Math.max(current.assists, player.assists || 0);
+    current.matches_played = Math.max(current.matches_played, player.matches_played || 0);
+    current.rating = Math.max(current.rating, Number(player.rating || 0));
+    current.points = current.goals * 20 + current.assists * 12 + current.matches_played * 5 + Math.round(current.rating * 10) + (extra.points || 0);
+    map.set(player.player_id, current);
+  };
+  state.rankings.scorers.players.forEach((player) => add(player));
+  state.rankings.assists.players.forEach((player) => add(player));
+  if (!map.size) {
+    state.players.forEach((player) =>
+      map.set(player.id, {
+        player_id: player.id,
+        name: player.name,
+        position: player.position,
+        rating: Number(player.rating || 0),
+        matches_played: 0,
+        goals: 0,
+        assists: 0,
+        points: Math.round(Number(player.rating || 0) * 10),
+      }),
+    );
+  }
+  return [...map.values()].sort((a, b) => b.points - a.points || b.rating - a.rating || a.name.localeCompare(b.name));
+}
+
+function rankingHighlightsHtml(players) {
+  const bestScorer = state.rankings.scorers.players[0] || players[0];
+  const bestAverage = players.reduce((best, item) => (Number(item.rating || 0) > Number(best?.rating || 0) ? item : best), players[0] || null);
+  const mostPresent = players.reduce((best, item) => ((item.matches_played || 0) > (best?.matches_played || 0) ? item : best), players[0] || null);
+  return `
+    <article class="ranking-highlights">
+      ${highlightItemHtml(icons.home, "Melhor atacante", bestScorer?.name || "-", `${bestScorer?.goals || 0} gols`)}
+      ${highlightItemHtml(icons.sparkles, "Melhor media", bestAverage?.name || "-", fmtRating(bestAverage?.rating || 0))}
+      ${highlightItemHtml(icons.users, "Maior presenca", mostPresent?.name || "-", `${mostPresent?.matches_played || 0} jogos`)}
+    </article>
+  `;
+}
+
+function highlightItemHtml(icon, label, name, value) {
+  return `<div class="highlight-item">${icon}<div><small>${esc(label)}</small><strong>${esc(name)}</strong><span>${esc(value)}</span></div></div>`;
+}
+
+function rankingPodiumHtml(topPlayers) {
+  const ordered = [topPlayers[1], topPlayers[0], topPlayers[2]].filter(Boolean);
+  return `
+    <section class="podium-card">
+      ${ordered.map((player) => {
+        const rank = topPlayers.indexOf(player) + 1;
+        return `
+          <article class="podium-player rank-${rank}">
+            <span class="podium-rank">${rank}</span>
+            <span class="podium-avatar">${esc(initials(player.name))}</span>
+            <strong>${esc(player.name)}</strong>
+            <em>${fmtPos(player.position)}</em>
+            <p><span>★</span> ${fmtRating(player.rating || 0)}</p>
+            <p><span>◉</span> ${player.points || 0} pts</p>
+          </article>
+        `;
+      }).join("")}
+    </section>
+  `;
+}
+
+function rankingListRowHtml(player, index) {
+  const rank = index + 4;
+  const trendClass = index % 3 === 0 ? "up" : index % 3 === 1 ? "flat" : "down";
+  const trend = trendClass === "up" ? "↗" : trendClass === "down" ? "↘" : "-";
+  return `
+    <div class="ranking-list-row">
+      <span class="list-rank">${rank}</span>
+      <span class="list-avatar">${esc(initials(player.name))}</span>
+      <div><strong>${esc(player.name)}</strong><small>${fmtPos(player.position)}</small></div>
+      <span class="list-rating">★ ${fmtRating(player.rating || 0)}</span>
+      <span class="list-points">◉ ${player.points || 0} pts</span>
+      <span class="trend ${trendClass}">${trend}</span>
+    </div>
   `;
 }
 
@@ -509,7 +708,50 @@ function rankingCardHtml(title, players, field) {
 
 function profileHtml() {
   const pelada = state.session.pelada;
+  const active = state.players.filter((player) => player.is_active);
+  const revenue = active.filter((player) => player.billing_type === "diarista").length * 20;
+  const favoritePosition = getFavoritePosition();
   return `
+    <section class="mobile-profile-v2">
+      <article class="profile-identity-card">
+        <div class="profile-avatar-wrap">
+          <img src="/static/pelapan-logo.png" alt="">
+          <button type="button" data-profile-edit>${icons.plus}</button>
+        </div>
+        <div class="profile-identity-main">
+          <h2>${esc(pelada.name)}</h2>
+          <div class="profile-mini-stats">
+            <span>${icons.home}<small>Posicao favorita</small><strong>${fmtPos(favoritePosition)}</strong></span>
+            <span>${icons.users}<small>Presenca</small><strong>${state.players.length ? Math.round((active.length / state.players.length) * 100) : 0}%</strong></span>
+            <span>${icons.sparkles}<small>Rating medio</small><strong>${averageRating()}</strong></span>
+          </div>
+          <button class="profile-edit-button" type="button" data-profile-edit>${icons.plus}Editar perfil</button>
+        </div>
+      </article>
+
+      <div class="profile-stat-grid">
+        ${profileStatHtml("⚽", state.matches.length || 0, "Jogos")}
+        ${profileStatHtml(icons.calendar, `${state.players.length ? Math.round((active.length / state.players.length) * 100) : 0}%`, "Presenca")}
+        ${profileStatHtml(icons.money, `R$ ${revenue}`, "Pagamentos")}
+        ${profileStatHtml(icons.trophy, "#12", "Ranking")}
+      </div>
+
+      <article class="profile-menu-card">
+        ${profileMenuItemHtml(icons.user, "Minha conta", "Dados pessoais")}
+        ${profileMenuItemHtml(icons.calendar, "Notificacoes", "Preferencias")}
+        ${profileMenuItemHtml(icons.money, "Pagamentos", "Historico e metodos")}
+        ${profileMenuItemHtml(icons.sparkles, "Preferencias", "App e privacidade")}
+        ${profileMenuItemHtml(icons.home, "Ajuda", "Suporte e FAQ")}
+        ${profileMenuItemHtml(icons.plus, "Sair", "Encerrar sessao", true)}
+      </article>
+
+      <article class="invite-card">
+        <span>${icons.home}</span>
+        <div><strong>Pelada e mais com voce!</strong><p>Participe, convide amigos e fortaleza o futebol da sua comunidade.</p></div>
+        <button type="button" data-view="players">Convidar amigos</button>
+      </article>
+    </section>
+
     <section class="profile-panel">
       <p class="eyebrow">Configuracoes</p>
       <h2>Perfil da pelada</h2>
@@ -525,6 +767,28 @@ function profileHtml() {
       <button class="danger-action" data-action="logout" type="button">Sair da conta</button>
     </section>
   `;
+}
+
+function getFavoritePosition() {
+  const counts = state.players.reduce((acc, player) => {
+    acc[player.position] = (acc[player.position] || 0) + 1;
+    return acc;
+  }, {});
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "meio";
+}
+
+function averageRating() {
+  if (!state.players.length) return "0";
+  const average = state.players.reduce((sum, player) => sum + Number(player.rating || 0), 0) / state.players.length;
+  return fmtRating(average);
+}
+
+function profileStatHtml(icon, value, label) {
+  return `<article class="profile-stat">${typeof icon === "string" && icon.startsWith("<") ? icon : `<span>${icon}</span>`}<strong>${esc(value)}</strong><small>${esc(label)}</small></article>`;
+}
+
+function profileMenuItemHtml(icon, title, subtitle, danger = false) {
+  return `<button class="profile-menu-item ${danger ? "danger" : ""}" ${danger ? 'data-action="logout"' : 'type="button"'} type="button">${icon}<strong>${esc(title)}</strong><span>${esc(subtitle)}</span><em>›</em></button>`;
 }
 
 function shareHtml() {
@@ -591,7 +855,9 @@ function bindApp() {
   document.querySelectorAll("[data-share-match]").forEach((button) => button.addEventListener("click", () => shareMatch(Number(button.dataset.shareMatch))));
   document.querySelectorAll("[data-delete-match]").forEach((button) => button.addEventListener("click", () => deleteMatch(Number(button.dataset.deleteMatch))));
   document.querySelector("#profileForm")?.addEventListener("submit", saveProfile);
+  document.querySelectorAll("[data-profile-edit]").forEach((button) => button.addEventListener("click", openProfileEditor));
   bindPlayerFilters();
+  bindHistoryFilters();
 }
 
 function bindPlayerFilters() {
@@ -613,6 +879,24 @@ function bindPlayerFilters() {
       filter = button.dataset.filter;
       document.querySelectorAll("[data-filter]").forEach((item) => item.classList.toggle("active", item === button));
       refresh();
+    });
+  });
+}
+
+function bindHistoryFilters() {
+  const search = document.querySelector("#historySearch");
+  const list = document.querySelector("#mobileHistoryList");
+  if (!search || !list) return;
+  const refresh = () => {
+    const query = search.value.trim().toLowerCase();
+    list.querySelectorAll(".mobile-match-card").forEach((card) => {
+      card.style.display = !query || card.dataset.historyTitle.includes(query) ? "" : "none";
+    });
+  };
+  search.addEventListener("input", refresh);
+  document.querySelectorAll("[data-history-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll("[data-history-filter]").forEach((item) => item.classList.toggle("active", item === button));
     });
   });
 }
@@ -749,6 +1033,13 @@ async function saveProfile(event) {
   } catch (error) {
     flash(error.message, true);
   }
+}
+
+function openProfileEditor() {
+  const panel = document.querySelector(".profile-panel");
+  if (!panel) return;
+  panel.style.display = "block";
+  panel.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 init();

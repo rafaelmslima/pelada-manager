@@ -1,4 +1,4 @@
-const CACHE_NAME = "pelada-manager-v10-mobile-card-fit";
+const CACHE_NAME = "pelada-manager-v14-mobile-profile";
 const CORE_ASSETS = [
   "/",
   "/static/pelapan-logo.png",
