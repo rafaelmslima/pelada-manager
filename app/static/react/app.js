@@ -40,6 +40,7 @@ const api = {
   me: () => requestJson("/api/auth/me"),
   login: (email, password) => postJson("/api/auth/login", { email, password }),
   register: (payload) => postJson("/api/auth/register", payload),
+  resetPassword: (payload) => postJson("/api/auth/admin-reset-password", payload),
   logout: () => requestJson("/api/auth/logout", { method: "POST" }),
   updatePelada: (payload) => putJson("/api/auth/pelada", payload),
   players: () => requestJson("/api/players"),
@@ -147,7 +148,7 @@ function render() {
   }
 
   root.innerHTML = `
-    <div class="app-frame">
+    <div class="app-frame view-${state.view}">
       ${sidebarHtml()}
       <main class="app-main">
         ${headerHtml()}
@@ -167,9 +168,10 @@ function authHtml() {
         <img src="/static/pelapan-logo.png" alt="">
         <p class="eyebrow">Organize sua pelada</p>
         <h1>Pelada Manager</h1>
-        <div class="segmented">
+        <div class="segmented auth-segmented">
           <button class="active" data-auth-tab="login" type="button">Login</button>
           <button data-auth-tab="register" type="button">Cadastro</button>
+          <button data-auth-tab="reset" type="button">Reset senha</button>
         </div>
         <form id="authForm" class="form-grid" data-mode="login">
           <div id="registerFields" class="hidden"></div>
@@ -189,11 +191,19 @@ function bindAuth() {
       document.querySelectorAll("[data-auth-tab]").forEach((item) => item.classList.toggle("active", item === button));
       const form = document.querySelector("#authForm");
       form.dataset.mode = mode;
-      document.querySelector("#registerFields").innerHTML =
-        mode === "register"
-          ? `<label>Nome<input name="name" required minlength="2"></label><label>Nome da pelada<input name="pelada_name"></label>`
-          : "";
-      form.querySelector("button.primary-action").textContent = mode === "register" ? "Criar conta" : "Entrar";
+      const extraFields = document.querySelector("#registerFields");
+      const passwordLabel = form.querySelector("label:nth-of-type(2)");
+      if (mode === "register") {
+        extraFields.innerHTML = `<label>Nome<input name="name" required minlength="2"></label><label>Nome da pelada<input name="pelada_name"></label>`;
+        passwordLabel.innerHTML = `Senha<input name="password" type="password" minlength="6" required>`;
+      } else if (mode === "reset") {
+        extraFields.innerHTML = `<label>Codigo administrativo<input name="admin_secret" type="password" autocomplete="off" required></label>`;
+        passwordLabel.innerHTML = `Nova senha<input name="password" type="password" minlength="6" required>`;
+      } else {
+        extraFields.innerHTML = "";
+        passwordLabel.innerHTML = `Senha<input name="password" type="password" required>`;
+      }
+      form.querySelector("button.primary-action").textContent = mode === "register" ? "Criar conta" : mode === "reset" ? "Alterar senha" : "Entrar";
     });
   });
 
@@ -202,6 +212,16 @@ function bindAuth() {
     const form = event.currentTarget;
     const data = new FormData(form);
     try {
+      if (form.dataset.mode === "reset") {
+        await api.resetPassword({
+          email: data.get("email"),
+          new_password: data.get("password"),
+          admin_secret: data.get("admin_secret"),
+        });
+        flash("Senha alterada. Entre com a nova senha.");
+        form.reset();
+        return;
+      }
       state.session =
         form.dataset.mode === "register"
           ? await api.register({

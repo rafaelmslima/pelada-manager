@@ -123,6 +123,26 @@ def login_user(db: Session, payload: schemas.AuthLoginRequest) -> models.User:
     return user
 
 
+def admin_reset_password(db: Session, payload: schemas.AdminPasswordResetRequest) -> None:
+    expected_secret = os.getenv("PASSWORD_RESET_ADMIN_SECRET", "")
+    if not expected_secret:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Reset administrativo de senha nao configurado.",
+        )
+
+    if not hmac.compare_digest(payload.admin_secret, expected_secret):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Codigo administrativo invalido.")
+
+    user = db.scalars(select(models.User).where(models.User.email == payload.email.lower())).first()
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario nao encontrado.")
+
+    user.password_hash = hash_password(payload.new_password)
+    db.query(models.UserSession).filter(models.UserSession.user_id == user.id).delete()
+    db.commit()
+
+
 def serialize_current_user(user: models.User) -> schemas.AuthMeResponse:
     pelada = get_current_pelada(user)
     return schemas.AuthMeResponse(

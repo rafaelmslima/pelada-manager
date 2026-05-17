@@ -52,6 +52,8 @@ export const api = {
   me: () => request<AuthMe>("/api/auth/me"),
   login: (email: string, password: string) =>
     request<AuthMe>("/api/auth/login", { method: "POST", json: { email, password } }),
+  resetPassword: (payload: { email: string; new_password: string; admin_secret: string }) =>
+    request<{ ok: boolean }>("/api/auth/admin-reset-password", { method: "POST", json: payload }),
   register: (payload: { name: string; email: string; password: string; pelada_name: string | null }) =>
     request<AuthMe>("/api/auth/register", { method: "POST", json: payload }),
   logout: () => request<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),

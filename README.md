@@ -41,13 +41,14 @@ alembic upgrade head
 
 ## Railway
 - Definir `DATABASE_URL` no projeto.
-- Comando web: `cd frontend && npm install --include=dev && npm run build && cd .. && uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Comando web: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 - `Procfile` incluido.
 
 ## Autenticacao
 - Rotas publicas: `/api/auth/register`, `/api/auth/login`
 - Sessao por cookie HTTP-only
 - Rotas `/api/*` protegidas por sessao
+- Reset administrativo sem login: defina `PASSWORD_RESET_ADMIN_SECRET` e use a aba "Reset senha" na tela de login.
 
 ## Testes
 ```bash

@@ -36,6 +36,24 @@ class AuthLoginRequest(BaseModel):
         return clean
 
 
+class AdminPasswordResetRequest(BaseModel):
+    email: str
+    new_password: str = Field(..., min_length=6, max_length=128)
+    admin_secret: str = Field(..., min_length=1, max_length=512)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        clean = value.strip().lower()
+        if "@" not in clean:
+            raise ValueError("Email invalido.")
+        return clean
+
+
+class AdminPasswordResetResponse(BaseModel):
+    ok: bool
+
+
 class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

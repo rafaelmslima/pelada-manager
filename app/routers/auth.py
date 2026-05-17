@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.auth import (
     SESSION_COOKIE_NAME,
+    admin_reset_password,
     clear_session,
     create_session,
     get_current_pelada,
@@ -39,6 +40,15 @@ def login(
     user = login_user(db, payload)
     create_session(response, db, user)
     return serialize_current_user(user)
+
+
+@router.post("/admin-reset-password", response_model=schemas.AdminPasswordResetResponse)
+def reset_password_without_login(
+    payload: schemas.AdminPasswordResetRequest,
+    db: Session = Depends(get_db),
+):
+    admin_reset_password(db, payload)
+    return schemas.AdminPasswordResetResponse(ok=True)
 
 
 @router.post("/logout")

@@ -860,6 +860,10 @@ h3 {
   margin: 16px 0;
 }
 
+.auth-card .segmented {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
 .segmented button {
   min-height: 42px;
   border-radius: 12px;

@@ -323,7 +323,7 @@ function LoadingScreen() {
 }
 
 function AuthScreen({ onLogin, onMessage }: { onLogin: (me: AuthMe) => void; onMessage: (text: string, error?: boolean) => void }) {
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register" | "reset">("login");
   const [busy, setBusy] = useState(false);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -331,6 +331,16 @@ function AuthScreen({ onLogin, onMessage }: { onLogin: (me: AuthMe) => void; onM
     const form = new FormData(event.currentTarget);
     setBusy(true);
     try {
+      if (mode === "reset") {
+        await api.resetPassword({
+          email: String(form.get("email")),
+          new_password: String(form.get("password")),
+          admin_secret: String(form.get("admin_secret"))
+        });
+        event.currentTarget.reset();
+        onMessage("Senha alterada. Entre com a nova senha.");
+        return;
+      }
       const me =
         mode === "login"
           ? await api.login(String(form.get("email")), String(form.get("password")))
@@ -361,6 +371,9 @@ function AuthScreen({ onLogin, onMessage }: { onLogin: (me: AuthMe) => void; onM
           <button className={mode === "register" ? "active" : ""} onClick={() => setMode("register")} type="button">
             Cadastro
           </button>
+          <button className={mode === "reset" ? "active" : ""} onClick={() => setMode("reset")} type="button">
+            Reset senha
+          </button>
         </div>
         <form className="form-grid" onSubmit={submit}>
           {mode === "register" && (
@@ -375,16 +388,22 @@ function AuthScreen({ onLogin, onMessage }: { onLogin: (me: AuthMe) => void; onM
               </label>
             </>
           )}
+          {mode === "reset" && (
+            <label>
+              Codigo administrativo
+              <input name="admin_secret" type="password" autoComplete="off" required />
+            </label>
+          )}
           <label>
             Email
             <input name="email" type="email" required />
           </label>
           <label>
-            Senha
-            <input name="password" type="password" minLength={mode === "register" ? 6 : 1} required />
+            {mode === "reset" ? "Nova senha" : "Senha"}
+            <input name="password" type="password" minLength={mode === "login" ? 1 : 6} required />
           </label>
           <button className="primary-action" disabled={busy}>
-            {busy ? "Aguarde..." : mode === "login" ? "Entrar" : "Criar conta"}
+            {busy ? "Aguarde..." : mode === "login" ? "Entrar" : mode === "register" ? "Criar conta" : "Alterar senha"}
           </button>
         </form>
       </section>
