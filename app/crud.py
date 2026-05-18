@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app import models, schemas
@@ -66,6 +66,16 @@ def toggle_player_active(db: Session, player: models.Player) -> models.Player:
     db.commit()
     db.refresh(player)
     return player
+
+
+def deactivate_all_players(db: Session, pelada_id: int) -> list[models.Player]:
+    db.execute(
+        update(models.Player)
+        .where(models.Player.pelada_id == pelada_id, models.Player.is_active.is_(True))
+        .values(is_active=False)
+    )
+    db.commit()
+    return get_players(db, pelada_id)
 
 
 def get_matches(db: Session, pelada_id: int) -> list[schemas.MatchListItem]:

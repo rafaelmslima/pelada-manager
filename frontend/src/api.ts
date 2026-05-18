@@ -66,6 +66,7 @@ export const api = {
     request<Player>(`/api/players/${id}`, { method: "PUT", json: payload }),
   deletePlayer: (id: number) => request<void>(`/api/players/${id}`, { method: "DELETE" }),
   togglePlayer: (id: number) => request<Player>(`/api/players/${id}/toggle-active`, { method: "PATCH" }),
+  deactivateAllPlayers: () => request<Player[]>("/api/players/deactivate-all", { method: "PATCH" }),
   playerProfile: (id: number) => request<PlayerProfile>(`/api/players/${id}/profile`),
 
   generateTeams: (players_per_team: number) =>

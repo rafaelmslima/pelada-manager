@@ -484,6 +484,19 @@ h3 {
   color: #fff;
 }
 
+.chip-row .clear-selection {
+  margin-left: auto;
+  border: 1px solid #f0c7c3;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.chip-row button:disabled,
+.check-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .player-card {
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr) 34px auto;

@@ -1,4 +1,4 @@
-import React, { FormEvent, useEffect, useMemo, useState } from "react";
+import React, { FormEvent, useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -237,7 +237,7 @@ function AppShell() {
           <PlayersView
             players={players}
             defaultBilling={session.pelada.default_billing_type}
-            onReload={loadPlayers}
+            onPlayersChange={setPlayers}
             onError={handleError}
             onMessage={flash}
             onProfile={async (id) => {
@@ -569,14 +569,14 @@ function HomeView({
 function PlayersView({
   players,
   defaultBilling,
-  onReload,
+  onPlayersChange,
   onError,
   onMessage,
   onProfile
 }: {
   players: Player[];
   defaultBilling: BillingType;
-  onReload: () => void;
+  onPlayersChange: React.Dispatch<React.SetStateAction<Player[]>>;
   onError: (error: unknown) => void;
   onMessage: (text: string, error?: boolean) => void;
   onProfile: (id: number) => void;
@@ -585,22 +585,83 @@ function PlayersView({
   const [filter, setFilter] = useState<PlayerFilter>("all");
   const [editing, setEditing] = useState<Player | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [pendingPlayerIds, setPendingPlayerIds] = useState<Set<number>>(() => new Set());
+  const [deactivatingAll, setDeactivatingAll] = useState(false);
+  const deferredQuery = useDeferredValue(query);
 
-  const filtered = players.filter((player) => {
+  const activeCount = useMemo(() => players.reduce((total, player) => total + Number(player.is_active), 0), [players]);
+  const normalizedQuery = useMemo(() => deferredQuery.trim().toLowerCase(), [deferredQuery]);
+  const filtered = useMemo(() => players.filter((player) => {
     const matchesFilter = filter === "all" || (filter === "confirmed" && player.is_active) || (filter === "pending" && !player.is_active);
-    return matchesFilter && player.name.toLowerCase().includes(query.trim().toLowerCase());
-  });
+    return matchesFilter && player.name.toLowerCase().includes(normalizedQuery);
+  }), [filter, normalizedQuery, players]);
+
+  const sortPlayers = (items: Player[]) => [...items].sort((first, second) => first.name.localeCompare(second.name));
+
+  const setPlayerPending = useCallback((playerId: number, isPending: boolean) => {
+    setPendingPlayerIds((current) => {
+      const next = new Set(current);
+      if (isPending) {
+        next.add(playerId);
+      } else {
+        next.delete(playerId);
+      }
+      return next;
+    });
+  }, []);
+
+  const togglePlayer = useCallback(
+    async (player: Player) => {
+      if (pendingPlayerIds.has(player.id) || deactivatingAll) return;
+      const previousActive = player.is_active;
+      setPlayerPending(player.id, true);
+      onPlayersChange((current) =>
+        current.map((item) => (item.id === player.id ? { ...item, is_active: !previousActive } : item))
+      );
+      try {
+        const updatedPlayer = await api.togglePlayer(player.id);
+        onPlayersChange((current) => current.map((item) => (item.id === updatedPlayer.id ? updatedPlayer : item)));
+      } catch (error) {
+        onPlayersChange((current) =>
+          current.map((item) => (item.id === player.id ? { ...item, is_active: previousActive } : item))
+        );
+        onError(error);
+      } finally {
+        setPlayerPending(player.id, false);
+      }
+    },
+    [deactivatingAll, onError, onPlayersChange, pendingPlayerIds, setPlayerPending]
+  );
+
+  const deactivateAllPlayers = useCallback(async () => {
+    if (!activeCount || deactivatingAll) return;
+    const activeIds = new Set(players.filter((player) => player.is_active).map((player) => player.id));
+    setDeactivatingAll(true);
+    onPlayersChange((current) => current.map((player) => (activeIds.has(player.id) ? { ...player, is_active: false } : player)));
+    try {
+      const updatedPlayers = await api.deactivateAllPlayers();
+      onPlayersChange(updatedPlayers);
+      onMessage("Todos os jogadores foram desmarcados.");
+    } catch (error) {
+      onPlayersChange((current) => current.map((player) => (activeIds.has(player.id) ? { ...player, is_active: true } : player)));
+      onError(error);
+    } finally {
+      setDeactivatingAll(false);
+    }
+  }, [activeCount, deactivatingAll, onError, onMessage, onPlayersChange, players]);
 
   const savePlayer = async (payload: PlayerPayload) => {
     try {
+      const savedPlayer = editing ? await api.updatePlayer(editing.id, payload) : await api.createPlayer(payload);
+      onPlayersChange((current) =>
+        editing
+          ? current.map((player) => (player.id === savedPlayer.id ? savedPlayer : player))
+          : sortPlayers([...current, savedPlayer])
+      );
       if (editing) {
-        await api.updatePlayer(editing.id, payload);
-      } else {
-        await api.createPlayer(payload);
+        setEditing(null);
       }
       setSheetOpen(false);
-      setEditing(null);
-      onReload();
       onMessage(editing ? "Jogador atualizado." : "Jogador cadastrado.");
     } catch (error) {
       onError(error);
@@ -629,67 +690,38 @@ function PlayersView({
             {item === "all" ? "Todos" : item === "confirmed" ? "Confirmados" : "Pendentes"}
           </button>
         ))}
+        <button
+          className="clear-selection"
+          disabled={!activeCount || deactivatingAll}
+          onClick={deactivateAllPlayers}
+          type="button"
+        >
+          Desmarcar todos
+        </button>
       </div>
       <div className="player-list">
         {filtered.map((player) => (
-          <article className="player-card" key={player.id}>
-            <button className="avatar" onClick={() => onProfile(player.id)} type="button">
-              {initials(player.name)}
-            </button>
-            <div className="player-body">
-              <button className="text-button" onClick={() => onProfile(player.id)} type="button">
-                {player.name}
-              </button>
-              <div className="meta-line">
-                <span>{formatPosition(player.position)}</span>
-                <span>Rating {formatRating(player.rating)}</span>
-                <span>{formatBillingType(player.billing_type)}</span>
-                <span className={player.has_paid ? "good" : "warn"}>{player.has_paid ? "Pago" : "Pendente"}</span>
-              </div>
-            </div>
-            <button
-              className={`check-button ${player.is_active ? "checked" : ""}`}
-              onClick={async () => {
-                try {
-                  await api.togglePlayer(player.id);
-                  onReload();
-                } catch (error) {
-                  onError(error);
-                }
-              }}
-              type="button"
-              aria-label={player.is_active ? "Remover confirmacao" : "Confirmar jogador"}
-            >
-              {player.is_active && <Check size={17} />}
-            </button>
-            <div className="card-actions">
-              <button
-                onClick={() => {
-                  setEditing(player);
-                  setSheetOpen(true);
-                }}
-                type="button"
-              >
-                Editar
-              </button>
-              <button
-                className="danger-text"
-                onClick={async () => {
-                  if (!window.confirm(`Excluir ${player.name}?`)) return;
-                  try {
-                    await api.deletePlayer(player.id);
-                    onReload();
-                    onMessage("Jogador excluido.");
-                  } catch (error) {
-                    onError(error);
-                  }
-                }}
-                type="button"
-              >
-                Excluir
-              </button>
-            </div>
-          </article>
+          <PlayerCard
+            key={player.id}
+            player={player}
+            isPending={pendingPlayerIds.has(player.id) || deactivatingAll}
+            onDelete={async () => {
+              if (!window.confirm(`Excluir ${player.name}?`)) return;
+              try {
+                await api.deletePlayer(player.id);
+                onPlayersChange((current) => current.filter((item) => item.id !== player.id));
+                onMessage("Jogador excluido.");
+              } catch (error) {
+                onError(error);
+              }
+            }}
+            onEdit={() => {
+              setEditing(player);
+              setSheetOpen(true);
+            }}
+            onProfile={onProfile}
+            onToggle={() => togglePlayer(player)}
+          />
         ))}
       </div>
       {!filtered.length && <EmptyState title="Nenhum jogador encontrado" text="Ajuste a busca ou cadastre um novo jogador." />}
@@ -710,6 +742,61 @@ function PlayersView({
     </section>
   );
 }
+
+const PlayerCard = React.memo(
+  function PlayerCard({
+    player,
+    isPending,
+    onDelete,
+    onEdit,
+    onProfile,
+    onToggle
+  }: {
+    player: Player;
+    isPending: boolean;
+    onDelete: () => void;
+    onEdit: () => void;
+    onProfile: (id: number) => void;
+    onToggle: () => void;
+  }) {
+    return (
+      <article className="player-card">
+        <button className="avatar" onClick={() => onProfile(player.id)} type="button">
+          {initials(player.name)}
+        </button>
+        <div className="player-body">
+          <button className="text-button" onClick={() => onProfile(player.id)} type="button">
+            {player.name}
+          </button>
+          <div className="meta-line">
+            <span>{formatPosition(player.position)}</span>
+            <span>Rating {formatRating(player.rating)}</span>
+            <span>{formatBillingType(player.billing_type)}</span>
+            <span className={player.has_paid ? "good" : "warn"}>{player.has_paid ? "Pago" : "Pendente"}</span>
+          </div>
+        </div>
+        <button
+          className={`check-button ${player.is_active ? "checked" : ""}`}
+          disabled={isPending}
+          onClick={onToggle}
+          type="button"
+          aria-label={player.is_active ? "Remover confirmacao" : "Confirmar jogador"}
+        >
+          {player.is_active && <Check size={17} />}
+        </button>
+        <div className="card-actions">
+          <button onClick={onEdit} type="button">
+            Editar
+          </button>
+          <button className="danger-text" onClick={onDelete} type="button">
+            Excluir
+          </button>
+        </div>
+      </article>
+    );
+  },
+  (previous, next) => previous.player === next.player && previous.isPending === next.isPending
+);
 
 function PlayerSheet({ player, defaultBilling, onClose, onSave }: { player: Player | null; defaultBilling: BillingType; onClose: () => void; onSave: (payload: PlayerPayload) => void }) {
   const base = player || { ...emptyPlayer, billing_type: defaultBilling };

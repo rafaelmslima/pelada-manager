@@ -18,6 +18,15 @@ def list_players(
     return crud.get_players(db, pelada.id)
 
 
+@router.patch("/deactivate-all", response_model=list[schemas.PlayerRead])
+def deactivate_all_players(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_user),
+):
+    pelada = get_current_pelada(current_user)
+    return crud.deactivate_all_players(db, pelada.id)
+
+
 @router.get("/{player_id}/profile", response_model=schemas.PlayerProfile)
 def get_player_profile(
     player_id: int,
