@@ -1,6 +1,8 @@
 import unittest
 
-from app.schemas import PlayerCreate, PlayerUpdate
+from pydantic import ValidationError
+
+from app.schemas import AuthLoginRequest, PlayerCreate, PlayerUpdate
 
 
 class PlayerManagementTest(unittest.TestCase):
@@ -23,6 +25,13 @@ class PlayerManagementTest(unittest.TestCase):
         self.assertEqual(player.billing_type, "mensalista")
         self.assertTrue(player.has_paid)
         self.assertEqual(player.whatsapp, "11999999999")
+
+    def test_auth_email_uses_real_email_validation(self):
+        with self.assertRaises(ValidationError):
+            AuthLoginRequest(email="rafael@", password="senha")
+
+        payload = AuthLoginRequest(email="Rafael@example.com", password="senha")
+        self.assertEqual(payload.email, "rafael@example.com")
 
 
 if __name__ == "__main__":

@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -8,8 +9,15 @@ from app.database import Base, engine, ensure_legacy_multitenant_columns
 from app.routers import auth, matches, players, rankings, teams
 
 
-Base.metadata.create_all(bind=engine)
-ensure_legacy_multitenant_columns()
+def initialize_database_from_env() -> None:
+    if os.getenv("AUTO_CREATE_TABLES", "false").lower() == "true":
+        Base.metadata.create_all(bind=engine)
+
+    if os.getenv("AUTO_PATCH_LEGACY_SQLITE", "false").lower() == "true":
+        ensure_legacy_multitenant_columns()
+
+
+initialize_database_from_env()
 
 app = FastAPI(
     title="Pelada Manager",

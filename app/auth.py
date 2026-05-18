@@ -4,7 +4,8 @@ import hashlib
 import hmac
 import os
 import secrets
-from datetime import datetime
+import time
+from datetime import UTC, datetime, timedelta
 
 from fastapi import Cookie, Depends, HTTPException, Response, status
 from sqlalchemy import select, text
@@ -16,6 +17,8 @@ from app.database import get_db
 
 SESSION_COOKIE_NAME = "pelada_session"
 PBKDF2_ITERATIONS = 120000
+DEFAULT_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
+_RATE_LIMIT_BUCKETS: dict[str, list[float]] = {}
 
 
 def hash_password(password: str) -> str:
@@ -46,13 +49,14 @@ def create_session(response: Response, db: Session, user: models.User) -> None:
     db.add(models.UserSession(user_id=user.id, token=token))
     db.commit()
 
+    max_age = get_session_max_age_seconds()
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=token,
         httponly=True,
         samesite="lax",
-        secure=os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true",
-        max_age=60 * 60 * 24 * 30,
+        secure=is_session_cookie_secure(),
+        max_age=max_age,
     )
 
 
@@ -63,19 +67,23 @@ def clear_session(response: Response, db: Session, token: str | None) -> None:
             db.delete(session)
             db.commit()
 
-    response.delete_cookie(key=SESSION_COOKIE_NAME)
+    response.delete_cookie(key=SESSION_COOKIE_NAME, samesite="lax", secure=is_session_cookie_secure())
 
 
 def _get_user_from_token(db: Session, token: str | None) -> models.User | None:
     if not token:
         return None
 
-    statement = (
-        select(models.User)
-        .join(models.UserSession, models.UserSession.user_id == models.User.id)
-        .where(models.UserSession.token == token)
-    )
-    return db.scalars(statement).first()
+    session = db.scalars(select(models.UserSession).where(models.UserSession.token == token)).first()
+    if session is None:
+        return None
+
+    if session.created_at < utc_now() - timedelta(seconds=get_session_max_age_seconds()):
+        db.delete(session)
+        db.commit()
+        return None
+
+    return session.user
 
 
 def get_current_user(
@@ -143,13 +151,45 @@ def admin_reset_password(db: Session, payload: schemas.AdminPasswordResetRequest
     db.commit()
 
 
+def enforce_rate_limit(key: str, max_attempts: int, window_seconds: int) -> None:
+    now = time.monotonic()
+    attempts = [timestamp for timestamp in _RATE_LIMIT_BUCKETS.get(key, []) if now - timestamp < window_seconds]
+
+    if len(attempts) >= max_attempts:
+        _RATE_LIMIT_BUCKETS[key] = attempts
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Muitas tentativas. Aguarde alguns minutos e tente novamente.",
+        )
+
+    attempts.append(now)
+    _RATE_LIMIT_BUCKETS[key] = attempts
+
+
 def serialize_current_user(user: models.User) -> schemas.AuthMeResponse:
     pelada = get_current_pelada(user)
     return schemas.AuthMeResponse(
         user=schemas.UserRead.model_validate(user),
         pelada=schemas.PeladaRead.model_validate(pelada),
-        server_time=datetime.utcnow(),
+        server_time=utc_now(),
     )
+
+
+def get_session_max_age_seconds() -> int:
+    raw_value = os.getenv("SESSION_MAX_AGE_SECONDS", str(DEFAULT_SESSION_MAX_AGE_SECONDS))
+    try:
+        max_age = int(raw_value)
+    except ValueError:
+        return DEFAULT_SESSION_MAX_AGE_SECONDS
+    return max(max_age, 60)
+
+
+def is_session_cookie_secure() -> bool:
+    return os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true"
+
+
+def utc_now() -> datetime:
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def _backfill_legacy_rows_without_pelada(db: Session, pelada_id: int) -> None:

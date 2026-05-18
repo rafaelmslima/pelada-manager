@@ -147,6 +147,12 @@ def update_match_stats(
     stats_data: schemas.MatchStatsUpdate,
     pelada_id: int,
 ) -> models.Match:
+    validate_match_integrity(db, match, pelada_id)
+
+    stat_ids = [player_stats.id for player_stats in stats_data.players]
+    if len(stat_ids) != len(set(stat_ids)):
+        raise ValueError("Um jogador foi informado mais de uma vez nas estatisticas.")
+
     players_by_id = {match_player.id: match_player for match_player in match.players}
     teams_by_id = {team.id: team for team in match.teams}
 
@@ -227,3 +233,21 @@ def _validate_match_payload(db: Session, match_data: schemas.MatchCreate, pelada
     missing_ids = set(player_ids) - existing_ids
     if missing_ids:
         raise ValueError("Um ou mais jogadores da pelada nao foram encontrados.")
+
+
+def validate_match_integrity(db: Session, match: models.Match, pelada_id: int) -> None:
+    if match.pelada_id != pelada_id:
+        raise ValueError("Pelada nao pertence a este usuario.")
+
+    match_team_ids = {team.id for team in match.teams}
+    for team in match.teams:
+        if team.pelada_id != pelada_id or team.match_id != match.id:
+            raise ValueError("Time informado nao pertence a esta pelada.")
+
+    for match_player in match.players:
+        if match_player.pelada_id != pelada_id or match_player.match_id != match.id:
+            raise ValueError("Jogador informado nao pertence a esta pelada.")
+        if match_player.team_id not in match_team_ids:
+            raise ValueError("Jogador informado nao pertence a um time desta pelada.")
+        if match_player.player.pelada_id != pelada_id:
+            raise ValueError("Jogador informado nao pertence a esta pelada.")

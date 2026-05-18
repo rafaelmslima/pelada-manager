@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -7,6 +7,7 @@ from app.auth import (
     admin_reset_password,
     clear_session,
     create_session,
+    enforce_rate_limit,
     get_current_pelada,
     get_current_user,
     login_user,
@@ -34,9 +35,11 @@ def register(
 @router.post("/login", response_model=schemas.AuthMeResponse)
 def login(
     payload: schemas.AuthLoginRequest,
+    request: Request,
     response: Response,
     db: Session = Depends(get_db),
 ):
+    enforce_rate_limit(f"login:{_client_key(request)}:{payload.email}", max_attempts=10, window_seconds=300)
     user = login_user(db, payload)
     create_session(response, db, user)
     return serialize_current_user(user)
@@ -45,8 +48,10 @@ def login(
 @router.post("/admin-reset-password", response_model=schemas.AdminPasswordResetResponse)
 def reset_password_without_login(
     payload: schemas.AdminPasswordResetRequest,
+    request: Request,
     db: Session = Depends(get_db),
 ):
+    enforce_rate_limit(f"admin-reset:{_client_key(request)}:{payload.email}", max_attempts=5, window_seconds=300)
     admin_reset_password(db, payload)
     return schemas.AdminPasswordResetResponse(ok=True)
 
@@ -82,3 +87,7 @@ def update_pelada(
     db.commit()
     db.refresh(current_user)
     return serialize_current_user(current_user)
+
+
+def _client_key(request: Request) -> str:
+    return request.client.host if request.client else "unknown"

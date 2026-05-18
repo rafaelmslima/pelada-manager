@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 Position = Literal["defesa", "meio", "ataque"]
@@ -10,44 +10,35 @@ BillingType = Literal["mensalista", "diarista"]
 
 class AuthRegisterRequest(BaseModel):
     name: str = Field(..., min_length=2, max_length=120)
-    email: str
+    email: EmailStr
     password: str = Field(..., min_length=6, max_length=128)
     pelada_name: str | None = Field(default=None, min_length=2, max_length=120)
 
     @field_validator("email")
     @classmethod
-    def validate_email(cls, value: str) -> str:
-        clean = value.strip().lower()
-        if "@" not in clean:
-            raise ValueError("Email invalido.")
-        return clean
+    def validate_email(cls, value: EmailStr) -> str:
+        return str(value).strip().lower()
 
 
 class AuthLoginRequest(BaseModel):
-    email: str
+    email: EmailStr
     password: str = Field(..., min_length=1, max_length=128)
 
     @field_validator("email")
     @classmethod
-    def validate_email(cls, value: str) -> str:
-        clean = value.strip().lower()
-        if "@" not in clean:
-            raise ValueError("Email invalido.")
-        return clean
+    def validate_email(cls, value: EmailStr) -> str:
+        return str(value).strip().lower()
 
 
 class AdminPasswordResetRequest(BaseModel):
-    email: str
+    email: EmailStr
     new_password: str = Field(..., min_length=6, max_length=128)
     admin_secret: str = Field(..., min_length=1, max_length=512)
 
     @field_validator("email")
     @classmethod
-    def validate_email(cls, value: str) -> str:
-        clean = value.strip().lower()
-        if "@" not in clean:
-            raise ValueError("Email invalido.")
-        return clean
+    def validate_email(cls, value: EmailStr) -> str:
+        return str(value).strip().lower()
 
 
 class AdminPasswordResetResponse(BaseModel):
@@ -76,7 +67,7 @@ class PeladaRead(BaseModel):
 class PeladaUpdate(BaseModel):
     name: str = Field(..., min_length=2, max_length=120)
     location: str = Field(default="", max_length=160)
-    match_time: str = Field(default="20:00", max_length=20)
+    match_time: str = Field(default="20:00", pattern=r"^\d{2}:\d{2}$")
     default_billing_type: BillingType = "diarista"
 
     @field_validator("name", "location", "match_time")
@@ -170,11 +161,27 @@ class MatchTeamCreate(BaseModel):
     is_team_of_the_week: bool = False
     players: list[MatchPlayerCreate] = Field(..., min_length=1)
 
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, value: str) -> str:
+        clean_value = value.strip()
+        if not clean_value:
+            raise ValueError("Nome do time e obrigatorio.")
+        return clean_value
+
 
 class MatchCreate(BaseModel):
     date: date
     title: str = Field(..., min_length=1, max_length=120)
     teams: list[MatchTeamCreate] = Field(..., min_length=1)
+
+    @field_validator("title")
+    @classmethod
+    def normalize_title(cls, value: str) -> str:
+        clean_value = value.strip()
+        if not clean_value:
+            raise ValueError("Titulo da pelada e obrigatorio.")
+        return clean_value
 
 
 class MatchStatsPlayerUpdate(BaseModel):
