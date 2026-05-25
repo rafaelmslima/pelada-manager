@@ -37,6 +37,7 @@ import type {
   RankingPlayer,
   RankingsSummary,
   TeamGenerateResponse,
+  TeamPlayer,
   TeamResult
 } from "./types";
 import "./styles.css";
@@ -73,6 +74,51 @@ function viewToPath(view: View) {
     profile: "/perfil",
     share: "/print"
   }[view];
+}
+
+function recalculateTeam(team: TeamResult): TeamResult {
+  const totalRating = Number(team.players.reduce((total, player) => total + Number(player.rating), 0).toFixed(2));
+  return {
+    ...team,
+    total_rating: totalRating,
+    average_rating: team.players.length ? Number((totalRating / team.players.length).toFixed(2)) : 0,
+    player_count: team.players.length,
+    is_incomplete: team.players.length < team.capacity
+  };
+}
+
+function movePlayerBetweenTeams(teams: TeamResult[], playerId: number, targetTeamIndex: number) {
+  const sourceTeamIndex = teams.findIndex((team) => team.players.some((player) => player.id === playerId));
+  if (sourceTeamIndex < 0 || sourceTeamIndex === targetTeamIndex || !teams[targetTeamIndex]) {
+    return teams;
+  }
+
+  let movingPlayer: TeamPlayer | null = null;
+  const nextTeams = teams.map((team, index) => {
+    if (index !== sourceTeamIndex) {
+      return { ...team, players: [...team.players] };
+    }
+
+    const players = team.players.filter((player) => {
+      if (player.id === playerId) {
+        movingPlayer = player;
+        return false;
+      }
+      return true;
+    });
+    return { ...team, players };
+  });
+
+  if (!movingPlayer) {
+    return teams;
+  }
+
+  nextTeams[targetTeamIndex] = {
+    ...nextTeams[targetTeamIndex],
+    players: [...nextTeams[targetTeamIndex].players, movingPlayer]
+  };
+
+  return nextTeams.map(recalculateTeam);
 }
 
 function AppShell() {
@@ -226,6 +272,7 @@ function AppShell() {
             teams={teams}
             onGenerate={generateTeams}
             onSave={saveMatch}
+            onTeamsChange={setTeams}
             onPlayers={() => setView("players")}
             onHistory={() => {
               setView("history");
@@ -512,6 +559,7 @@ function HomeView({
   teams,
   onGenerate,
   onSave,
+  onTeamsChange,
   onPlayers,
   onHistory
 }: {
@@ -520,6 +568,7 @@ function HomeView({
   teams: TeamGenerateResponse | null;
   onGenerate: (playersPerTeam: number) => void;
   onSave: () => void;
+  onTeamsChange: React.Dispatch<React.SetStateAction<TeamGenerateResponse | null>>;
   onPlayers: () => void;
   onHistory: () => void;
 }) {
@@ -568,7 +617,18 @@ function HomeView({
         </div>
       </section>
       <section className="teams-area">
-        {teams ? <TeamsResult teams={teams.teams} reserves={teams.reserves} /> : <EmptyState title="Times ainda nao gerados" text="Confirme os jogadores e gere times equilibrados para a rodada." />}
+        {teams ? (
+          <TeamsResult
+            teams={teams.teams}
+            onMovePlayer={(playerId, targetTeamIndex) =>
+              onTeamsChange((current) =>
+                current ? { ...current, teams: movePlayerBetweenTeams(current.teams, playerId, targetTeamIndex) } : current
+              )
+            }
+          />
+        ) : (
+          <EmptyState title="Times ainda nao gerados" text="Confirme os jogadores e gere times equilibrados para a rodada." />
+        )}
       </section>
     </div>
   );
@@ -879,10 +939,17 @@ function PlayerSheet({ player, defaultBilling, onClose, onSave }: { player: Play
   );
 }
 
-function TeamsResult({ teams, reserves }: { teams: TeamResult[]; reserves: TeamResult["players"] }) {
+function TeamsResult({ teams, onMovePlayer }: { teams: TeamResult[]; onMovePlayer: (playerId: number, targetTeamIndex: number) => void }) {
   return (
-    <div className="teams-grid">
-      {teams.map((team, index) => (
+    <div className="editable-teams">
+      <div className="toolbar compact-toolbar">
+        <div>
+          <p className="eyebrow">Ajustes finais</p>
+          <h2>Times gerados</h2>
+        </div>
+      </div>
+      <div className="teams-grid">
+        {teams.map((team, index) => (
         <article className="team-card" key={`${team.name}-${index}`}>
           <header>
             <div>
@@ -893,7 +960,7 @@ function TeamsResult({ teams, reserves }: { teams: TeamResult[]; reserves: TeamR
           </header>
           <ol>
             {team.players.map((player) => (
-              <li key={player.id}>
+              <li className="team-player-row" key={player.id}>
                 <span className="mini-avatar">{initials(player.name)}</span>
                 <div>
                   <strong>{player.name}</strong>
@@ -901,32 +968,31 @@ function TeamsResult({ teams, reserves }: { teams: TeamResult[]; reserves: TeamR
                     {formatPosition(player.position)} - Rating {formatRating(player.rating)}
                   </small>
                 </div>
+                <label className="move-field">
+                  Mover para
+                  <select
+                    aria-label={`Mover ${player.name} para outro time`}
+                    value={index}
+                    onChange={(event) => onMovePlayer(player.id, Number(event.target.value))}
+                  >
+                    {teams.map((targetTeam, targetIndex) => (
+                      <option value={targetIndex} key={`${targetTeam.name}-${targetIndex}`}>
+                        Time {targetIndex + 1}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </li>
             ))}
-          </ol>
-        </article>
-      ))}
-      {!!reserves.length && (
-        <article className="team-card reserves">
-          <header>
-            <div>
-              <span>Banco</span>
-              <h3>Reservas</h3>
-            </div>
-          </header>
-          <ol>
-            {reserves.map((player) => (
-              <li key={player.id}>
-                <span className="mini-avatar">{initials(player.name)}</span>
-                <div>
-                  <strong>{player.name}</strong>
-                  <small>{formatPosition(player.position)}</small>
-                </div>
+            {!team.players.length && (
+              <li className="empty-team-row">
+                <span>Time sem jogadores</span>
               </li>
-            ))}
+            )}
           </ol>
         </article>
-      )}
+        ))}
+      </div>
     </div>
   );
 }
