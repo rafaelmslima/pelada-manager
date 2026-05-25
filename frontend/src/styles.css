@@ -1021,7 +1021,7 @@ h3 {
 
   .app-main {
     border-radius: 0;
-    padding: 0 14px calc(108px + env(safe-area-inset-bottom));
+    padding: 0 14px calc(132px + env(safe-area-inset-bottom));
     background: transparent;
     box-shadow: none;
     overflow: visible;
@@ -1049,7 +1049,7 @@ h3 {
 
   .top-summary h1,
   .top-summary .eyebrow,
-  .top-summary span {
+  .summary-title span {
     color: #fff;
   }
 
@@ -1059,12 +1059,23 @@ h3 {
 
   .metric-strip {
     grid-template-columns: 1fr 1fr;
-    margin-top: 8px;
+    gap: 9px;
+    margin-top: 10px;
   }
 
   .metric {
-    min-height: 78px;
-    border-radius: 16px;
+    min-height: 74px;
+    border-radius: 15px;
+    padding: 11px;
+    color: var(--ink);
+  }
+
+  .top-summary .metric strong {
+    color: var(--ink);
+  }
+
+  .top-summary .metric span {
+    color: var(--muted);
   }
 
   .screen-grid,
@@ -1136,7 +1147,7 @@ h3 {
     border: 1px solid rgba(218, 228, 221, 0.94);
     border-radius: 22px;
     background: rgba(255, 255, 255, 0.96);
-    padding: 8px;
+    padding: 7px;
     box-shadow: 0 -10px 24px rgba(10, 45, 34, 0.14);
     backdrop-filter: blur(16px);
   }
@@ -1145,7 +1156,7 @@ h3 {
     display: grid;
     place-items: center;
     gap: 4px;
-    min-height: 58px;
+    min-height: 54px;
     border-radius: 16px;
     background: transparent;
     color: #6e7d77;
@@ -1200,12 +1211,16 @@ h3 {
 
   .metric {
     grid-template-columns: 20px minmax(0, 1fr);
-    min-height: 72px;
+    min-height: 66px;
     padding: 10px;
   }
 
   .metric strong {
     font-size: 1.12rem;
+  }
+
+  .metric span {
+    font-size: 0.69rem;
   }
 
   .auth-card .segmented {
