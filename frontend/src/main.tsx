@@ -525,6 +525,7 @@ function HomeView({
 }) {
   const [playersPerTeam, setPlayersPerTeam] = useState(5);
   const active = players.filter((player) => player.is_active);
+  const safePlayersPerTeam = Number.isFinite(playersPerTeam) ? Math.min(30, Math.max(1, playersPerTeam)) : 5;
   return (
     <div className="screen-grid">
       <section className="action-panel">
@@ -537,9 +538,16 @@ function HomeView({
         </div>
         <label className="compact-field">
           Jogadores por time
-          <input min={1} max={30} type="number" value={playersPerTeam} onChange={(event) => setPlayersPerTeam(Number(event.target.value))} />
+          <input
+            min={1}
+            max={30}
+            type="number"
+            value={playersPerTeam}
+            onBlur={() => setPlayersPerTeam(safePlayersPerTeam)}
+            onChange={(event) => setPlayersPerTeam(Number(event.target.value))}
+          />
         </label>
-        <button className="primary-action" onClick={() => onGenerate(playersPerTeam)} type="button">
+        <button className="primary-action" onClick={() => onGenerate(safePlayersPerTeam)} type="button">
           <Sparkles size={19} />
           Gerar times
         </button>
@@ -700,7 +708,7 @@ function PlayersView({
         </button>
       </div>
       <div className="player-list">
-        {filtered.map((player) => (
+        {sortPlayers(filtered).map((player) => (
           <PlayerCard
             key={player.id}
             player={player}
@@ -968,8 +976,11 @@ function HistoryView({
             </div>
             <div className="row-actions">
               <button onClick={() => onOpen(match.id)} type="button">Detalhes</button>
-              <button onClick={() => onShare(match.id)} type="button">Print</button>
-              <button className="danger-text" onClick={() => onDelete(match.id)} type="button">
+              <button onClick={() => onShare(match.id)} type="button">
+                <Printer size={16} />
+                Print
+              </button>
+              <button className="danger-text icon-only" onClick={() => onDelete(match.id)} type="button" aria-label="Excluir pelada">
                 <Trash2 size={16} />
               </button>
             </div>

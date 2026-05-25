@@ -1,4 +1,4 @@
-const CACHE_NAME = "pelada-manager-v15-player-selection";
+const CACHE_NAME = "pelada-manager-v16-ui-readability";
 const CORE_ASSETS = [
   "/",
   "/static/pelapan-logo.png",
@@ -26,7 +26,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (request.method !== "GET") {
+  if (request.method !== "GET" || requestUrl.pathname.startsWith("/api/")) {
     return;
   }
 

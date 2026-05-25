@@ -20,6 +20,12 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -34,11 +40,35 @@ button,
 input,
 select {
   font: inherit;
+  min-width: 0;
 }
 
 button {
   border: 0;
   cursor: pointer;
+  white-space: normal;
+}
+
+img,
+svg {
+  flex-shrink: 0;
+}
+
+img {
+  display: block;
+}
+
+h1,
+h2,
+h3,
+p,
+span,
+strong,
+small,
+label,
+button,
+a {
+  overflow-wrap: anywhere;
 }
 
 input,
@@ -154,16 +184,18 @@ label {
 }
 
 .app-main {
+  min-width: 0;
   min-height: calc(100vh - 28px);
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.74);
   padding: 24px;
   box-shadow: inset 0 0 0 1px rgba(223, 232, 225, 0.72);
+  overflow: hidden;
 }
 
 .top-summary {
   display: grid;
-  grid-template-columns: 1fr minmax(420px, 0.95fr);
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 520px);
   gap: 18px;
   margin-bottom: 18px;
 }
@@ -172,6 +204,18 @@ label {
   display: flex;
   align-items: center;
   gap: 14px;
+  min-width: 0;
+}
+
+.summary-title > div,
+.toolbar > div,
+.team-card header > div,
+.share-sheet > header > div,
+.player-body,
+.ranking-row > div,
+.match-card > div,
+.stat-row > strong {
+  min-width: 0;
 }
 
 .summary-title img {
@@ -224,7 +268,7 @@ h3 {
 
 .metric-strip {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(118px, 1fr));
   gap: 10px;
 }
 
@@ -239,6 +283,7 @@ h3 {
   background: var(--surface);
   padding: 12px;
   box-shadow: 0 12px 24px rgba(16, 55, 42, 0.06);
+  min-width: 0;
 }
 
 .metric svg {
@@ -249,12 +294,14 @@ h3 {
 .metric strong {
   font-size: 1.35rem;
   line-height: 1;
+  min-width: 0;
 }
 
 .metric span {
   color: var(--muted);
   font-size: 0.76rem;
   font-weight: 800;
+  line-height: 1.2;
 }
 
 .toast {
@@ -313,6 +360,15 @@ h3 {
   border-radius: 13px;
   padding: 10px 14px;
   font-weight: 900;
+  line-height: 1.15;
+  max-width: 100%;
+}
+
+.icon-action,
+.icon-only {
+  width: 42px;
+  min-width: 42px;
+  padding: 0;
 }
 
 .primary-action {
@@ -370,6 +426,7 @@ h3 {
   border-radius: 17px;
   background: #fff;
   overflow: hidden;
+  min-width: 0;
 }
 
 .team-card header {
@@ -393,10 +450,13 @@ h3 {
   display: grid;
   place-items: center;
   min-width: 42px;
+  max-width: 76px;
   height: 42px;
   border-radius: 999px;
   background: #fff4dd;
   color: #8c5a10;
+  padding: 0 8px;
+  text-align: center;
 }
 
 .team-card ol {
@@ -409,7 +469,7 @@ h3 {
 
 .team-card li {
   display: grid;
-  grid-template-columns: 38px 1fr;
+  grid-template-columns: 38px minmax(0, 1fr);
   gap: 10px;
   align-items: center;
   padding: 10px 14px;
@@ -440,6 +500,7 @@ h3 {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -499,7 +560,7 @@ h3 {
 
 .player-card {
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) 34px auto;
+  grid-template-columns: 48px minmax(0, 1fr) 34px;
   gap: 12px;
   align-items: center;
   padding: 12px;
@@ -517,6 +578,7 @@ h3 {
   padding: 0;
   font-weight: 950;
   text-align: left;
+  max-width: 100%;
 }
 
 .meta-line {
@@ -566,7 +628,15 @@ h3 {
 
 .card-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+  grid-column: 2 / 4;
+  justify-content: flex-start;
+}
+
+.card-actions button {
+  min-height: 38px;
+  padding: 8px 12px;
 }
 
 .danger-text {
@@ -602,6 +672,7 @@ h3 {
   background: #fff;
   padding: 18px;
   box-shadow: var(--shadow);
+  min-width: 0;
 }
 
 .sheet header,
@@ -612,6 +683,7 @@ h3 {
   justify-content: space-between;
   gap: 12px;
   align-items: flex-start;
+  flex-wrap: wrap;
   margin-bottom: 14px;
 }
 
@@ -652,7 +724,7 @@ h3 {
 
 .match-card {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
   padding: 14px;
@@ -662,11 +734,12 @@ h3 {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  justify-content: flex-end;
 }
 
 .stat-row {
   display: grid;
-  grid-template-columns: 1fr 84px 84px;
+  grid-template-columns: minmax(120px, 1fr) minmax(76px, 92px) minmax(76px, 92px);
   gap: 8px;
   align-items: center;
   padding: 10px 12px;
@@ -694,6 +767,7 @@ h3 {
   background: #fff;
   padding: 7px 10px;
   font-size: 0.78rem;
+  white-space: nowrap;
 }
 
 .radio-chip input {
@@ -716,11 +790,15 @@ h3 {
 .ranking-row,
 .history-table div {
   display: grid;
-  grid-template-columns: 34px 1fr auto;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
   padding: 11px 0;
   border-bottom: 1px solid #edf2ee;
+}
+
+.history-table div {
+  grid-template-columns: minmax(78px, auto) minmax(0, 1fr) auto auto;
 }
 
 .ranking-row:last-child,
@@ -758,6 +836,7 @@ h3 {
 .share-sheet > header {
   display: flex;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 14px;
   border-bottom: 1px solid var(--line);
   padding-bottom: 14px;
@@ -800,7 +879,7 @@ h3 {
 
 .share-team-grid li {
   display: grid;
-  grid-template-columns: 28px 1fr auto;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
   gap: 8px;
   padding: 9px 12px;
   border-bottom: 1px solid #edf2ee;
@@ -919,6 +998,10 @@ h3 {
     grid-template-columns: 1fr;
   }
 
+  .metric-strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
   .action-panel {
     position: static;
   }
@@ -941,11 +1024,12 @@ h3 {
     padding: 0 14px calc(108px + env(safe-area-inset-bottom));
     background: transparent;
     box-shadow: none;
+    overflow: visible;
   }
 
   .top-summary {
-    margin: 0 -14px 86px;
-    padding: max(22px, env(safe-area-inset-top)) 16px 94px;
+    margin: 0 -14px 18px;
+    padding: max(22px, env(safe-area-inset-top)) 16px 18px;
     border-radius: 0 0 26px 26px;
     background:
       radial-gradient(circle at 86% 0%, rgba(255, 255, 255, 0.14), transparent 160px),
@@ -975,11 +1059,11 @@ h3 {
 
   .metric-strip {
     grid-template-columns: 1fr 1fr;
-    margin-bottom: -172px;
+    margin-top: 8px;
   }
 
   .metric {
-    min-height: 98px;
+    min-height: 78px;
     border-radius: 16px;
   }
 
@@ -1006,7 +1090,7 @@ h3 {
 
   .player-card {
     grid-template-columns: 46px minmax(0, 1fr) 32px;
-    padding: 11px 4px;
+    padding: 11px 0;
     border: 0;
     border-bottom: 1px solid #edf2ee;
     border-radius: 0;
@@ -1026,6 +1110,14 @@ h3 {
   .stat-row,
   .share-sheet > header {
     grid-template-columns: 1fr;
+  }
+
+  .match-card {
+    align-items: stretch;
+  }
+
+  .row-actions {
+    justify-content: flex-start;
   }
 
   .stat-row {
@@ -1059,6 +1151,7 @@ h3 {
     color: #6e7d77;
     font-size: 0.64rem;
     font-weight: 900;
+    line-height: 1.1;
   }
 
   .bottom-nav button.active {
@@ -1097,6 +1190,43 @@ h3 {
 
   .auth-card {
     border-radius: 22px;
+  }
+}
+
+@media (max-width: 480px) {
+  .metric-strip {
+    gap: 8px;
+  }
+
+  .metric {
+    grid-template-columns: 20px minmax(0, 1fr);
+    min-height: 72px;
+    padding: 10px;
+  }
+
+  .metric strong {
+    font-size: 1.12rem;
+  }
+
+  .auth-card .segmented {
+    grid-template-columns: 1fr;
+  }
+
+  .chip-row .clear-selection {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .share-team-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .history-table div {
+    grid-template-columns: 1fr auto auto;
+  }
+
+  .history-table div strong {
+    grid-column: 1 / -1;
   }
 }
 
