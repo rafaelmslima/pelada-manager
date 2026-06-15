@@ -75,9 +75,34 @@ class TeamBalancerTest(unittest.TestCase):
 
         self.assertEqual(len(teams), 4)
         self.assertEqual(reserves, [])
-        self.assertEqual([team.capacity for team in teams], [5, 5, 5, 1])
+        # Todos os times têm a mesma capacidade-alvo (cheia); apenas o último
+        # fica com menos jogadores, a serem completados durante a pelada.
+        self.assertEqual([team.capacity for team in teams], [5, 5, 5, 5])
         self.assertEqual([len(team.players) for team in teams], [5, 5, 5, 1])
+        self.assertEqual([team.missing_players for team in teams], [0, 0, 0, 4])
         self.assertPlayersUsedOnce(teams, players)
+
+    def test_incomplete_team_is_not_stuffed_with_top_players(self):
+        ratings = [5.0, 4.8, 4.6, 4.4, 4.2, 4.0, 3.8, 3.6, 3.4, 3.2, 3.0, 2.8, 2.6, 2.4, 2.2, 2.0]
+        players = [
+            make_player(index, f"Jogador {index}", rating)
+            for index, rating in enumerate(ratings, start=1)
+        ]
+        highest_rating = max(ratings)
+
+        for seed in range(20):
+            teams, _ = generate_balanced_teams(players, players_per_team=5, rng=Random(seed))
+
+            self.assertEqual([len(team.players) for team in teams], [5, 5, 5, 1])
+            full_teams = teams[:3]
+            incomplete_team = teams[3]
+            max_full_average = max(team.average_rating for team in full_teams)
+
+            # O time incompleto não deve ser equiparado em força aos cheios à
+            # custa de craques: sua média não pode estourar a do time cheio mais
+            # forte, e ele não deve ficar com o jogador de maior rating de todos.
+            self.assertLessEqual(incomplete_team.average_rating, max_full_average + 0.3)
+            self.assertNotEqual(incomplete_team.players[0].rating, highest_rating)
 
     def test_generates_different_balanced_teams_across_attempts(self):
         players = [

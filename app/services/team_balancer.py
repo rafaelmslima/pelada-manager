@@ -66,7 +66,7 @@ def distribute_by_rating(
         return []
 
     capacity = players_per_team or _max_team_size(len(players), number_of_teams)
-    teams = _create_teams(number_of_teams, len(players), capacity)
+    teams = _create_teams(number_of_teams, capacity)
 
     draft_order = _snake_draft_order(number_of_teams)
     order_index = 0
@@ -89,7 +89,7 @@ def improve_position_balance(teams: list[BalancedTeam]) -> list[BalancedTeam]:
     max_iterations = 100
     for _ in range(max_iterations):
         current_position_score = _position_score(teams)
-        current_rating_gap = _rating_gap(teams)
+        current_rating_gap = _average_rating_gap(teams)
         best_swap: tuple[BalancedTeam, Player, BalancedTeam, Player] | None = None
         best_position_score = current_position_score
         best_rating_gap = current_rating_gap
@@ -103,7 +103,7 @@ def improve_position_balance(teams: list[BalancedTeam]) -> list[BalancedTeam]:
 
                         _swap_players(first_team, first_player, second_team, second_player)
                         new_position_score = _position_score(teams)
-                        new_rating_gap = _rating_gap(teams)
+                        new_rating_gap = _average_rating_gap(teams)
                         _swap_players(first_team, second_player, second_team, first_player)
 
                         if new_rating_gap > current_rating_gap + POSITION_IMBALANCE_TOLERANCE:
@@ -194,34 +194,67 @@ def distribute_by_randomized_rating(
     if number_of_teams < 1:
         return []
 
-    teams = _create_teams(number_of_teams, len(players), players_per_team)
-    draft_order = _randomized_snake_draft_order(number_of_teams, rng)
-    order_index = 0
+    teams = _create_teams(number_of_teams, players_per_team)
+    draft_sequence = _randomized_draft_sequence(
+        number_of_teams,
+        players_per_team,
+        len(players),
+        rng,
+    )
 
-    for player in _randomized_rating_order(players, number_of_teams, rng):
-        team = _next_available_team(teams, draft_order, order_index)
-        if team is None:
-            break
-
-        team_index = teams.index(team)
-        team.players.append(player)
-        order_index = _next_order_index(draft_order, order_index, team_index)
+    ordered_players = _randomized_rating_order(players, number_of_teams, rng)
+    for team_index, player in zip(draft_sequence, ordered_players):
+        teams[team_index].players.append(player)
 
     return teams
 
 
+def _randomized_draft_sequence(
+    number_of_teams: int,
+    players_per_team: int,
+    player_count: int,
+    rng: Random,
+) -> list[int]:
+    """Ordem de escolha (índice de time por jogador, do melhor ao pior rating).
+
+    Os times cheios são preenchidos por snake draft. Quando faltam jogadores, o
+    último time fica incompleto: suas vagas são inseridas em posições aleatórias
+    da sequência, para que ele possa receber jogadores de faixas variadas (e não
+    só os de rating mais alto). O equilíbrio por média entre as tentativas é o
+    que define a melhor composição.
+    """
+    remainder = player_count % players_per_team if players_per_team else 0
+    full_team_count = number_of_teams if remainder == 0 else number_of_teams - 1
+
+    order = list(range(full_team_count))
+    rng.shuffle(order)
+
+    sequence: list[int] = []
+    forward = True
+    for _ in range(players_per_team):
+        sequence.extend(order if forward else list(reversed(order)))
+        forward = not forward
+
+    if remainder:
+        incomplete_index = number_of_teams - 1
+        for _ in range(remainder):
+            sequence.insert(rng.randint(0, len(sequence)), incomplete_index)
+
+    return sequence
+
+
 def _create_teams(
     number_of_teams: int,
-    player_count: int,
     players_per_team: int,
 ) -> list[BalancedTeam]:
-    remainder = player_count % players_per_team
+    # Todos os times têm a mesma capacidade-alvo (time cheio). Quando faltam
+    # jogadores, o último time fica naturalmente incompleto e será completado
+    # durante a pelada pelos jogadores que chegam depois — por isso ele NÃO é
+    # equiparado em força total aos times cheios (o que o encheria de craques).
     teams: list[BalancedTeam] = []
 
     for index in range(number_of_teams):
-        is_last_incomplete_team = index == number_of_teams - 1 and remainder != 0
-        capacity = remainder if is_last_incomplete_team else players_per_team
-        teams.append(BalancedTeam(name=f"Time {index + 1}", capacity=capacity))
+        teams.append(BalancedTeam(name=f"Time {index + 1}", capacity=players_per_team))
 
     return teams
 
@@ -230,12 +263,6 @@ def _snake_draft_order(number_of_teams: int) -> list[int]:
     forward = list(range(number_of_teams))
     backward = list(reversed(forward))
     return forward + backward
-
-
-def _randomized_snake_draft_order(number_of_teams: int, rng: Random) -> list[int]:
-    forward = list(range(number_of_teams))
-    rng.shuffle(forward)
-    return forward + list(reversed(forward))
 
 
 def _randomized_rating_order(
@@ -288,11 +315,14 @@ def _max_team_size(player_count: int, number_of_teams: int) -> int:
     return player_count // number_of_teams if player_count else 0
 
 
-def _rating_gap(teams: list[BalancedTeam]) -> float:
-    totals = [team.total_rating for team in teams if team.players]
-    if not totals:
+def _average_rating_gap(teams: list[BalancedTeam]) -> float:
+    # Compara a média por jogador (não o rating total). Assim o time incompleto
+    # não é "compensado" com craques para igualar o somatório dos times cheios:
+    # empilhar estrelas elevaria a média dele acima das demais e pioraria o gap.
+    averages = [team.average_rating for team in teams if team.players]
+    if not averages:
         return 0
-    return round(max(totals) - min(totals), 2)
+    return round(max(averages) - min(averages), 2)
 
 
 def _position_score(teams: list[BalancedTeam]) -> float:
@@ -307,7 +337,7 @@ def _position_score(teams: list[BalancedTeam]) -> float:
 
 
 def _team_quality_score(teams: list[BalancedTeam]) -> tuple[float, float]:
-    return (_rating_gap(teams), _position_score(teams))
+    return (_average_rating_gap(teams), _position_score(teams))
 
 
 def _expected_position_counts(teams: list[BalancedTeam]) -> dict[str, float]:
