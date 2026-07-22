@@ -6,7 +6,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.database import Base, engine, ensure_legacy_multitenant_columns
+from app.database import (
+    Base,
+    engine,
+    ensure_legacy_multitenant_columns,
+    ensure_schema_columns,
+)
 from app.routers import auth, matches, peladas, players, public, rankings, teams
 
 
@@ -16,6 +21,10 @@ def initialize_database_from_env() -> None:
 
     if os.getenv("AUTO_PATCH_LEGACY_SQLITE", "false").lower() == "true":
         ensure_legacy_multitenant_columns()
+
+    # Auto-corrige colunas adicionadas apos o deploy inicial (idempotente, Postgres+SQLite).
+    # Roda sempre: em banco ja criado, apenas adiciona o que falta; caso contrario, e no-op.
+    ensure_schema_columns()
 
 
 initialize_database_from_env()
