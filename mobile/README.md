@@ -51,6 +51,36 @@ src/
 - Navegação com as 5 abas. **Início** já mostra dados reais; as demais são placeholders
   a serem portados da web na Fase 1.
 
+## Development build (EAS) — testar no celular
+
+O projeto usa **Expo SDK 57**, novo demais para o Expo Go da Play Store. Em vez do Expo Go,
+usamos um **development build** (APK "dev client" que casa com o SDK 57 — mesmo caminho do
+APK final da loja). O setup local já está pronto (`expo-dev-client` + `eas.json`); falta só
+logar na sua conta Expo e disparar o build na nuvem:
+
+```bash
+cd mobile
+eas login                                          # conta grátis em expo.dev
+eas build --profile development --platform android # 1ª vez: cria o projeto na sua conta
+```
+
+O build roda na nuvem (~10-15 min) e devolve um QR/URL para baixar o APK. Instale no celular,
+depois rode o Metro e conecte:
+
+```bash
+npx expo start --dev-client
+```
+
+Abra o app **Pelapan** instalado → ele conecta no Metro → faça login → em "Configurar servidor"
+aponte para o backend (Railway ou seu IP local).
+
+Perfis em `eas.json`:
+- **development** — dev client (APK), para iterar com o Metro.
+- **preview** — APK standalone (JS embutido), para instalar/compartilhar sem Metro.
+- **production** — AAB para publicar na Play Store.
+
+> Dica: commite a pasta `mobile/` antes do primeiro `eas build` (o build empacota o projeto).
+
 ## Notas
 
 - Verificação de tipos: `npx tsc --noEmit`.

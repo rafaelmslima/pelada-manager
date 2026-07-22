@@ -3,6 +3,7 @@
 
 export type Position = 'defesa' | 'meio' | 'ataque';
 export type BillingType = 'mensalista' | 'diarista';
+export type PresenceStatus = 'pending' | 'confirmed' | 'declined';
 
 export type User = {
   id: number;
@@ -36,7 +37,13 @@ export type Player = {
   has_paid: boolean;
   whatsapp: string;
   is_active: boolean;
+  presence: PresenceStatus;
   created_at: string;
+};
+
+export type ConfirmationLink = {
+  token: string;
+  path: string;
 };
 
 export type PlayerPayload = {

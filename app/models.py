@@ -46,6 +46,8 @@ class Pelada(Base):
     location: Mapped[str] = mapped_column(String(160), default="", nullable=False)
     match_time: Mapped[str] = mapped_column(String(20), default="20:00", nullable=False)
     default_billing_type: Mapped[str] = mapped_column(String(20), default="diarista", nullable=False)
+    # Token do link publico de confirmacao de presenca (gerado sob demanda).
+    public_token: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True, index=True)
     owner_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, nullable=False)
 
@@ -63,6 +65,9 @@ class Player(Base):
     position: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     rating: Mapped[float] = mapped_column(Float, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Status de presenca: "pending" | "confirmed" | "declined". is_active fica em sincronia
+    # (confirmed => True). Permite distinguir "recusou" de "ainda nao respondeu".
+    presence: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
     billing_type: Mapped[str] = mapped_column(String(20), default="diarista", nullable=False)
     has_paid: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     whatsapp: Mapped[str] = mapped_column(String(30), default="", nullable=False)

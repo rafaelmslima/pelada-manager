@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1A1714" />
+  <title>Confirmar presença · Pelapan</title>
+  <style>
+    :root {
+      --page: #F0EDE6; --surface: #FAFAF8; --dark: #1A1714; --dark2: #2C2925;
+      --border: #EDE8DF; --ink: #1A1714; --ink2: #5C5048; --ink3: #8A7F6E;
+      --conf: #4CAF50; --conf-bg: #EBF5EB; --conf-t: #2D6B2D;
+      --abs: #E05050; --abs-bg: #FBEBEB; --abs-t: #8A2020; --on-dark: #F5F0E8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--page); color: var(--ink);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 480px; margin: 0 auto; padding: 20px 16px 48px; }
+    .hero {
+      background: var(--dark); color: var(--on-dark); border-radius: 20px;
+      padding: 22px; margin-bottom: 16px;
+    }
+    .hero h1 { margin: 0; font-size: 26px; font-weight: 800; }
+    .hero .sub { margin-top: 4px; color: #A79E92; font-size: 14px; }
+    .counts { display: flex; gap: 10px; margin-top: 16px; }
+    .count { flex: 1; background: var(--dark2); border-radius: 12px; padding: 10px; text-align: center; }
+    .count b { display: block; font-size: 22px; font-weight: 800; }
+    .count span { font-size: 11px; color: #A79E92; }
+    .lead { color: var(--ink2); font-size: 14px; margin: 4px 4px 14px; }
+    .row {
+      display: flex; align-items: center; gap: 12px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 14px; padding: 12px; margin-bottom: 10px;
+    }
+    .avatar { width: 40px; height: 40px; border-radius: 20px; display: flex; align-items: center;
+      justify-content: center; color: #fff; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+    .info { flex: 1; min-width: 0; }
+    .info .name { font-weight: 700; font-size: 15px; }
+    .info .meta { font-size: 12px; color: var(--ink3); }
+    .actions { display: flex; gap: 6px; }
+    .btn {
+      border: 1px solid var(--border); background: var(--page); border-radius: 10px;
+      padding: 8px 10px; font-size: 13px; font-weight: 700; cursor: pointer; color: var(--ink2);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn.yes.on { background: var(--conf-bg); border-color: var(--conf); color: var(--conf-t); }
+    .btn.no.on { background: var(--abs-bg); border-color: var(--abs); color: var(--abs-t); }
+    .state { text-align: center; padding: 48px 16px; color: var(--ink3); }
+    .toast {
+      position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+      background: var(--dark); color: var(--on-dark); padding: 10px 18px; border-radius: 20px;
+      font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+    .foot { text-align: center; color: var(--ink3); font-size: 12px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div id="content"><div class="state">Carregando…</div></div>
+    <p class="foot">Pelapan · organize sua pelada</p>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    var AVATAR_COLORS = ["#2D6040","#2D4A7A","#5C3A80","#8A4820","#1D6060","#6B2D40","#404A2D","#2D3A6B","#7A2D5C","#3A6B5C"];
+    var POS = { defesa: "Defesa", meio: "Meio", ataque: "Ataque" };
+    var token = location.pathname.split("/").filter(Boolean).pop();
+    var content = document.getElementById("content");
+    var toastEl = document.getElementById("toast");
+    var toastTimer;
+
+    function esc(s) { return String(s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+    function initials(name) {
+      return name.split(" ").filter(Boolean).map(function (p) { return p[0]; }).join("").slice(0, 2).toUpperCase();
+    }
+    function avatarColor(name) {
+      var h = 0; for (var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+      return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+    }
+    function toast(msg) {
+      toastEl.textContent = msg; toastEl.classList.add("show");
+      clearTimeout(toastTimer); toastTimer = setTimeout(function () { toastEl.classList.remove("show"); }, 1800);
+    }
+
+    function render(data) {
+      var sub = [data.location, data.match_time].filter(Boolean).join(" · ");
+      var html = ''
+        + '<div class="hero">'
+        + '<h1>' + esc(data.pelada_name) + '</h1>'
+        + (sub ? '<div class="sub">' + esc(sub) + '</div>' : '')
+        + '<div class="counts">'
+        + '<div class="count"><b>' + data.confirmed_count + '</b><span>Confirmados</span></div>'
+        + '<div class="count"><b>' + data.declined_count + '</b><span>Não vão</span></div>'
+        + '<div class="count"><b>' + data.total + '</b><span>Total</span></div>'
+        + '</div></div>'
+        + '<p class="lead">Toque no seu nome para confirmar ou recusar presença.</p>';
+
+      data.players.forEach(function (p) {
+        html += ''
+          + '<div class="row">'
+          + '<div class="avatar" style="background:' + avatarColor(p.name) + '">' + esc(initials(p.name)) + '</div>'
+          + '<div class="info"><div class="name">' + esc(p.name) + '</div>'
+          + '<div class="meta">' + (POS[p.position] || p.position) + '</div></div>'
+          + '<div class="actions">'
+          + '<button class="btn yes' + (p.presence === "confirmed" ? " on" : "") + '" data-id="' + p.id + '" data-status="confirmed">Vou</button>'
+          + '<button class="btn no' + (p.presence === "declined" ? " on" : "") + '" data-id="' + p.id + '" data-status="declined">Não</button>'
+          + '</div></div>';
+      });
+
+      content.innerHTML = html;
+      Array.prototype.forEach.call(content.querySelectorAll(".btn"), function (btn) {
+        btn.addEventListener("click", function () {
+          setStatus(btn.getAttribute("data-id"), btn.getAttribute("data-status"));
+        });
+      });
+    }
+
+    function load() {
+      fetch("/api/public/confirmation/" + encodeURIComponent(token))
+        .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+        .then(render)
+        .catch(function () {
+          content.innerHTML = '<div class="state">Link inválido ou expirado.<br>Peça um novo ao organizador.</div>';
+        });
+    }
+
+    function setStatus(id, status) {
+      fetch("/api/public/confirmation/" + encodeURIComponent(token) + "/players/" + id, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: status }),
+      })
+        .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+        .then(function (data) { render(data); toast(status === "confirmed" ? "Presença confirmada ✓" : "Presença recusada"); })
+        .catch(function () { toast("Não foi possível salvar. Tente de novo."); });
+    }
+
+    load();
+  </script>
+</body>
+</html>

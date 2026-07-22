@@ -29,31 +29,32 @@ def ensure_legacy_multitenant_columns(target_engine: Engine = engine) -> None:
     if not DATABASE_URL.startswith("sqlite"):
         return
 
+    # Mapa coluna -> DDL para cada tabela (usado apenas em SQLite legado).
     required_by_table = {
-        "peladas": ["location", "match_time", "default_billing_type"],
-        "players": ["pelada_id"],
-        "matches": ["pelada_id"],
-        "match_teams": ["pelada_id"],
-        "match_players": ["pelada_id"],
+        "peladas": {
+            "location": "TEXT NOT NULL DEFAULT ''",
+            "match_time": "TEXT NOT NULL DEFAULT '20:00'",
+            "default_billing_type": "TEXT NOT NULL DEFAULT 'diarista'",
+            "public_token": "TEXT",
+        },
+        "players": {
+            "pelada_id": "INTEGER",
+            "presence": "TEXT NOT NULL DEFAULT 'pending'",
+        },
+        "matches": {"pelada_id": "INTEGER"},
+        "match_teams": {"pelada_id": "INTEGER"},
+        "match_players": {"pelada_id": "INTEGER"},
     }
 
     with target_engine.begin() as connection:
-        for table_name, required_columns in required_by_table.items():
+        for table_name, columns in required_by_table.items():
             existing_columns = {
                 row[1]
                 for row in connection.execute(text(f"PRAGMA table_info({table_name})"))
             }
-            for column in required_columns:
+            for column, ddl in columns.items():
                 if column not in existing_columns:
-                    if table_name == "peladas":
-                        defaults = {
-                            "location": "TEXT NOT NULL DEFAULT ''",
-                            "match_time": "TEXT NOT NULL DEFAULT '20:00'",
-                            "default_billing_type": "TEXT NOT NULL DEFAULT 'diarista'",
-                        }
-                        connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column} {defaults[column]}"))
-                    else:
-                        connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column} INTEGER"))
+                    connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {column} {ddl}"))
 
 
 def get_db() -> Generator[Session, None, None]:

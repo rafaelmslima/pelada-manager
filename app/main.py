@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.database import Base, engine, ensure_legacy_multitenant_columns
-from app.routers import auth, matches, players, rankings, teams
+from app.routers import auth, matches, peladas, players, public, rankings, teams
 
 
 def initialize_database_from_env() -> None:
@@ -47,14 +47,23 @@ app.include_router(players.router)
 app.include_router(teams.router)
 app.include_router(matches.router)
 app.include_router(rankings.router)
+app.include_router(peladas.router)
+app.include_router(public.router)
 
 REACT_INDEX = Path("app/static/react/index.html")
 SERVICE_WORKER = Path("app/static/service-worker.js")
+CONFIRMATION_PAGE = Path("app/static/confirmation.html")
 
 
 @app.get("/service-worker.js", include_in_schema=False)
 def service_worker():
     return FileResponse(SERVICE_WORKER, media_type="application/javascript")
+
+
+@app.get("/confirmar/{token}", include_in_schema=False)
+def confirmation_page(token: str):
+    # Pagina publica autocontida; o token e lido do proprio path pelo JS.
+    return FileResponse(CONFIRMATION_PAGE, media_type="text/html")
 
 
 @app.get("/", include_in_schema=False)

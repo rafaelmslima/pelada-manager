@@ -1,7 +1,14 @@
+import secrets
+
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app import models, schemas
+
+
+PRESENCE_CONFIRMED = "confirmed"
+PRESENCE_DECLINED = "declined"
+PRESENCE_PENDING = "pending"
 
 
 def get_players(db: Session, pelada_id: int) -> list[models.Player]:
@@ -29,7 +36,9 @@ def get_player(db: Session, player_id: int, pelada_id: int) -> models.Player | N
 
 
 def create_player(db: Session, player_data: schemas.PlayerCreate, pelada_id: int) -> models.Player:
-    player = models.Player(pelada_id=pelada_id, **player_data.model_dump())
+    data = player_data.model_dump()
+    presence = PRESENCE_CONFIRMED if data.get("is_active") else PRESENCE_PENDING
+    player = models.Player(pelada_id=pelada_id, presence=presence, **data)
     db.add(player)
     db.commit()
     db.refresh(player)
@@ -43,6 +52,12 @@ def update_player(
 ) -> models.Player:
     for field, value in player_data.model_dump().items():
         setattr(player, field, value)
+    # Mantem presence coerente com is_active: confirmar seta "confirmed";
+    # desmarcar so rebaixa "confirmed" para "pending" (preserva "declined").
+    if player.is_active:
+        player.presence = PRESENCE_CONFIRMED
+    elif player.presence == PRESENCE_CONFIRMED:
+        player.presence = PRESENCE_PENDING
     db.commit()
     db.refresh(player)
     return player
@@ -63,19 +78,63 @@ def delete_player(db: Session, player: models.Player, pelada_id: int) -> None:
 
 def toggle_player_active(db: Session, player: models.Player) -> models.Player:
     player.is_active = not player.is_active
+    player.presence = PRESENCE_CONFIRMED if player.is_active else PRESENCE_PENDING
     db.commit()
     db.refresh(player)
     return player
 
 
 def deactivate_all_players(db: Session, pelada_id: int) -> list[models.Player]:
+    # Reseta a presenca de todos (novo dia de pelada): inativa e volta para "pending".
     db.execute(
         update(models.Player)
-        .where(models.Player.pelada_id == pelada_id, models.Player.is_active.is_(True))
-        .values(is_active=False)
+        .where(models.Player.pelada_id == pelada_id)
+        .values(is_active=False, presence=PRESENCE_PENDING)
     )
     db.commit()
     return get_players(db, pelada_id)
+
+
+# --- Confirmacao de presenca (link publico) ---
+
+def get_pelada_by_token(db: Session, token: str) -> models.Pelada | None:
+    if not token:
+        return None
+    return db.scalars(select(models.Pelada).where(models.Pelada.public_token == token)).first()
+
+
+def _generate_unique_token(db: Session) -> str:
+    while True:
+        token = secrets.token_urlsafe(16)
+        exists = db.scalars(select(models.Pelada.id).where(models.Pelada.public_token == token)).first()
+        if not exists:
+            return token
+
+
+def ensure_confirmation_token(db: Session, pelada: models.Pelada) -> str:
+    if not pelada.public_token:
+        pelada.public_token = _generate_unique_token(db)
+        db.commit()
+    return pelada.public_token
+
+
+def rotate_confirmation_token(db: Session, pelada: models.Pelada) -> str:
+    pelada.public_token = _generate_unique_token(db)
+    db.commit()
+    return pelada.public_token
+
+
+def set_player_presence(db: Session, pelada: models.Pelada, player_id: int, status: str) -> models.Player:
+    if status not in (PRESENCE_CONFIRMED, PRESENCE_DECLINED, PRESENCE_PENDING):
+        raise ValueError("Status de presenca invalido.")
+    player = get_player(db, player_id, pelada.id)
+    if player is None:
+        raise ValueError("Jogador nao encontrado nesta pelada.")
+    player.presence = status
+    player.is_active = status == PRESENCE_CONFIRMED
+    db.commit()
+    db.refresh(player)
+    return player
 
 
 def get_matches(db: Session, pelada_id: int) -> list[schemas.MatchListItem]:

@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 Position = Literal["defesa", "meio", "ataque"]
 BillingType = Literal["mensalista", "diarista"]
+PresenceStatus = Literal["pending", "confirmed", "declined"]
 
 
 class AuthRegisterRequest(BaseModel):
@@ -120,6 +121,7 @@ class PlayerRead(PlayerBase):
 
     id: int
     is_active: bool
+    presence: PresenceStatus = "pending"
     created_at: datetime
 
 
@@ -282,3 +284,32 @@ class RankingResponse(BaseModel):
 class RankingsSummary(BaseModel):
     scorers: RankingResponse
     assists: RankingResponse
+
+
+# --- Confirmacao de presenca (link publico) ---
+
+
+class ConfirmationLinkResponse(BaseModel):
+    token: str
+    path: str
+
+
+class PublicConfirmationPlayer(BaseModel):
+    id: int
+    name: str
+    position: Position
+    presence: PresenceStatus
+
+
+class PublicConfirmationView(BaseModel):
+    pelada_name: str
+    location: str
+    match_time: str
+    confirmed_count: int
+    declined_count: int
+    total: int
+    players: list[PublicConfirmationPlayer]
+
+
+class PublicPresenceUpdate(BaseModel):
+    status: PresenceStatus

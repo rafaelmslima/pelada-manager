@@ -2,6 +2,7 @@ import { getApiBaseUrl } from './config';
 import { getToken } from './storage';
 import type {
   AuthMe,
+  ConfirmationLink,
   MatchListItem,
   MatchRead,
   Pelada,
@@ -39,7 +40,17 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     init.body = JSON.stringify(options.json);
   }
 
-  const response = await fetch(`${getApiBaseUrl()}${path}`, init);
+  // Timeout para não travar em servidor inalcançável (URL errada / offline).
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  let response: Response;
+  try {
+    response = await fetch(`${getApiBaseUrl()}${path}`, { ...init, signal: controller.signal });
+  } catch {
+    throw new ApiError('Não foi possível conectar ao servidor. Verifique a URL e a conexão.', 0);
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (response.status === 204) {
     return null as T;
@@ -89,4 +100,8 @@ export const api = {
     request<MatchRead>(`/api/matches/${id}/stats`, { method: 'PUT', json: payload }),
 
   rankings: () => request<RankingsSummary>('/api/rankings/summary'),
+
+  confirmationLink: () => request<ConfirmationLink>('/api/peladas/confirmation-link', { method: 'POST' }),
+  rotateConfirmationLink: () =>
+    request<ConfirmationLink>('/api/peladas/confirmation-link/rotate', { method: 'POST' }),
 };

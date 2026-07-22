@@ -1,9 +1,9 @@
 import { useRouter, useSegments } from 'expo-router';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
-import { api, ApiError } from './api';
+import { api } from './api';
 import { setApiBaseUrlOverride } from './config';
-import { clearToken, getApiUrl, saveToken } from './storage';
+import { clearToken, getApiUrl, getToken, saveToken } from './storage';
 import type { AuthMe } from './types';
 
 type AuthContextValue = {
@@ -51,13 +51,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const savedUrl = await getApiUrl();
       if (savedUrl) setApiBaseUrlOverride(savedUrl);
 
+      // Sem token salvo => vai direto pro login. Evita chamar api.me() e ficar
+      // pendurado num servidor inalcançável (ex.: URL padrão num device físico).
+      const token = await getToken();
+      if (!token) {
+        setSession(null);
+        return;
+      }
+
       const me = await api.me();
       setSession(me);
-    } catch (error) {
-      // 401 => sem sessão válida; qualquer outro erro também cai como deslogado.
-      if (!(error instanceof ApiError)) {
-        // erro de rede: mantém deslogado, o usuário pode tentar logar de novo.
-      }
+    } catch {
+      // 401 ou erro de rede => deslogado; o usuário loga (e ajusta o servidor) na tela de login.
       setSession(null);
     } finally {
       setLoading(false);

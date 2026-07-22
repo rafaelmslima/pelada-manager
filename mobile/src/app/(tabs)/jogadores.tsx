@@ -182,7 +182,14 @@ function PlayerRow({ player, onToggle, onPress }: { player: Player; onToggle: ()
     <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
       <PlayerAvatar name={player.name} />
       <View style={{ flex: 1 }}>
-        <Text style={styles.rowName}>{player.name}</Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.rowName}>{player.name}</Text>
+          {player.presence === 'declined' && (
+            <View style={styles.declinedBadge}>
+              <Text style={styles.declinedText}>Não vai</Text>
+            </View>
+          )}
+        </View>
         <Text style={styles.rowMeta}>
           {formatPosition(player.position)} · Nota {formatRating(player.rating)}
         </Text>
@@ -255,7 +262,10 @@ const styles = StyleSheet.create({
     padding: spacing.three,
     marginBottom: spacing.two,
   },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.two },
   rowName: { color: colors.ink, fontSize: 15, fontWeight: '700' },
+  declinedBadge: { backgroundColor: colors.absBg, paddingHorizontal: spacing.two, paddingVertical: 1, borderRadius: radius.badge },
+  declinedText: { color: colors.absT, fontSize: 10, fontWeight: '700' },
   rowMeta: { color: colors.ink3, fontSize: 12 },
   check: {
     width: 28,
