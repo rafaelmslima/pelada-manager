@@ -7,6 +7,12 @@
     "icon": "./assets/images/icon.png",
     "scheme": "pelapan",
     "userInterfaceStyle": "light",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/835a4e5e-589b-4cc0-8c59-730f29120c72"
+    },
     "ios": {
       "icon": "./assets/expo.icon"
     },
