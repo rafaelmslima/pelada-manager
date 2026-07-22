@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ServerUrlField } from '@/components/ServerUrlField';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { colors, radius, spacing } from '@/theme';
+import { colors, fonts, radius, spacing } from '@/theme';
 
 type Mode = 'login' | 'register';
 
@@ -154,8 +154,8 @@ const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.page },
   content: { paddingHorizontal: spacing.four, paddingBottom: spacing.six, gap: spacing.five },
   brand: { alignItems: 'center', gap: spacing.one },
-  brandTitle: { color: colors.ink, fontSize: 40, fontWeight: '800' },
-  brandSubtitle: { color: colors.ink2, fontSize: 14 },
+  brandTitle: { color: colors.ink, fontSize: 52, fontFamily: fonts.display, letterSpacing: 1 },
+  brandSubtitle: { color: colors.ink2, fontSize: 14, fontFamily: fonts.regular },
 
   tabs: {
     flexDirection: 'row',

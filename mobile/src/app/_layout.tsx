@@ -1,3 +1,13 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue';
+import {
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans';
+import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -11,25 +21,28 @@ import { colors } from '@/theme';
 
 SplashScreen.preventAutoHideAsync();
 
-function RootNavigator() {
+function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
   const { loading } = useAuth();
+  const ready = fontsReady && !loading;
 
   useEffect(() => {
-    if (!loading) {
+    if (ready) {
       SplashScreen.hideAsync().catch(() => {});
     }
-  }, [loading]);
+  }, [ready]);
 
   // O Stack fica sempre montado (o expo-router precisa do navigator); enquanto
-  // a sessão resolve, um overlay com spinner cobre a tela em vez de ficar branca.
+  // fontes/sessão resolvem, um overlay com spinner cobre a tela em vez de ficar branca.
   // O redirect entre login/tabs é feito no AuthProvider (useProtectedRoute).
   return (
     <>
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.page } }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="login" />
+        <Stack.Screen name="live/[matchId]" />
+        <Stack.Screen name="financeiro" />
       </Stack>
-      {loading && (
+      {!ready && (
         <View style={styles.loading}>
           <ActivityIndicator size="large" color={colors.dark} />
         </View>
@@ -52,12 +65,24 @@ const styles = StyleSheet.create({
 });
 
 export default function RootLayout() {
+  // Carrega as fontes da marca + ícones. Se falhar, `fontError` libera a UI mesmo assim.
+  const [fontsLoaded, fontError] = useFonts({
+    ...Ionicons.font,
+    BebasNeue_400Regular,
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+  });
+  const fontsReady = fontsLoaded || !!fontError;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AuthProvider>
           <StatusBar style="dark" />
-          <RootNavigator />
+          <RootNavigator fontsReady={fontsReady} />
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

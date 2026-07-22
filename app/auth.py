@@ -121,9 +121,14 @@ def require_user(current_user: models.User | None = Depends(get_current_user)) -
 
 
 def get_current_pelada(user: models.User) -> models.Pelada:
-    if user.pelada is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Pelada do usuario nao encontrada.")
-    return user.pelada
+    # Multi-pelada: a "ativa" primeiro; senao a primeira de que participa; senao a que possui.
+    if user.active_pelada is not None:
+        return user.active_pelada
+    if user.memberships:
+        return user.memberships[0].pelada
+    if user.owned_peladas:
+        return user.owned_peladas[0]
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Pelada do usuario nao encontrada.")
 
 
 def register_user(db: Session, payload: schemas.AuthRegisterRequest) -> models.User:
@@ -138,6 +143,9 @@ def register_user(db: Session, payload: schemas.AuthRegisterRequest) -> models.U
     pelada_name = payload.pelada_name.strip() if payload.pelada_name else f"Pelada de {payload.name.strip()}"
     pelada = models.Pelada(name=pelada_name, owner_user_id=user.id)
     db.add(pelada)
+    db.flush()
+    db.add(models.PeladaMember(user_id=user.id, pelada_id=pelada.id, role="owner"))
+    user.active_pelada_id = pelada.id
     db.commit()
     db.refresh(pelada)
     _backfill_legacy_rows_without_pelada(db, pelada.id)

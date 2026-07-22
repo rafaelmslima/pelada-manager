@@ -17,7 +17,33 @@ export type Pelada = {
   location: string;
   match_time: string;
   default_billing_type: BillingType;
+  daily_fee: number;
   created_at: string;
+};
+
+export type FinanceEntry = {
+  id: number;
+  kind: 'income' | 'expense';
+  amount: number;
+  description: string;
+  player_id: number | null;
+  player_name: string | null;
+  created_at: string;
+};
+
+export type MensalistaStatus = {
+  player_id: number;
+  name: string;
+  has_paid: boolean;
+};
+
+export type FinanceOverview = {
+  daily_fee: number;
+  total_income: number;
+  total_expense: number;
+  balance: number;
+  mensalistas: MensalistaStatus[];
+  entries: FinanceEntry[];
 };
 
 export type AuthMe = {
@@ -26,6 +52,15 @@ export type AuthMe = {
   server_time: string;
   // Preenchido apenas no login/register (Bearer token para o mobile).
   token?: string | null;
+};
+
+export type PeladaMembership = {
+  id: number;
+  name: string;
+  location: string;
+  match_time: string;
+  role: string;
+  is_active: boolean;
 };
 
 export type Player = {
@@ -44,6 +79,11 @@ export type Player = {
 export type ConfirmationLink = {
   token: string;
   path: string;
+};
+
+export type MatchRating = {
+  player_id: number;
+  score: number;
 };
 
 export type PlayerPayload = {

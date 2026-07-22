@@ -7,7 +7,7 @@ import { Screen } from '@/components/Screen';
 import { api } from '@/lib/api';
 import { formatPosition } from '@/lib/format';
 import type { RankingPlayer, RankingsSummary } from '@/lib/types';
-import { colors, radius, spacing } from '@/theme';
+import { colors, fonts, radius, spacing } from '@/theme';
 
 const MEDALS = [colors.gold, colors.silver, colors.bronze];
 
@@ -115,9 +115,9 @@ function PodiumSpot({ player, place, value }: { player: RankingPlayer; place: nu
 }
 
 const styles = StyleSheet.create({
-  title: { color: colors.ink, fontSize: 26, fontWeight: '800' },
+  title: { color: colors.ink, fontSize: 28, fontFamily: fonts.extrabold },
   section: { gap: spacing.three },
-  heading: { color: colors.ink, fontSize: 18, fontWeight: '800' },
+  heading: { color: colors.ink, fontSize: 18, fontFamily: fonts.extrabold },
 
   empty: {
     backgroundColor: colors.surface,
@@ -149,8 +149,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.half,
   },
-  podiumValue: { color: colors.onDark, fontSize: 20, fontWeight: '800' },
-  podiumPlace: { fontSize: 12, fontWeight: '800' },
+  podiumValue: { color: colors.onDark, fontSize: 24, fontFamily: fonts.display },
+  podiumPlace: { fontSize: 12, fontFamily: fonts.extrabold },
 
   list: { gap: spacing.two },
   row: {
@@ -166,6 +166,6 @@ const styles = StyleSheet.create({
   rank: { width: 20, textAlign: 'center', color: colors.ink3, fontWeight: '800', fontSize: 14 },
   rowName: { color: colors.ink, fontSize: 14, fontWeight: '700' },
   rowMeta: { color: colors.ink3, fontSize: 12 },
-  rowValue: { color: colors.ink, fontSize: 16, fontWeight: '800' },
+  rowValue: { color: colors.ink, fontSize: 18, fontFamily: fonts.display },
   rowUnit: { color: colors.ink3, fontSize: 11, fontWeight: '600' },
 });

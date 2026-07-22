@@ -84,6 +84,13 @@ def toggle_player_active(db: Session, player: models.Player) -> models.Player:
     return player
 
 
+def toggle_player_paid(db: Session, player: models.Player) -> models.Player:
+    player.has_paid = not player.has_paid
+    db.commit()
+    db.refresh(player)
+    return player
+
+
 def deactivate_all_players(db: Session, pelada_id: int) -> list[models.Player]:
     # Reseta a presenca de todos (novo dia de pelada): inativa e volta para "pending".
     db.execute(
@@ -93,6 +100,71 @@ def deactivate_all_players(db: Session, pelada_id: int) -> list[models.Player]:
     )
     db.commit()
     return get_players(db, pelada_id)
+
+
+# --- Multi-pelada (membros / troca / convite) ---
+
+def get_user_peladas(db: Session, user: models.User) -> list[tuple[models.Pelada, str]]:
+    """Peladas que o usuario possui ou participa, com o papel. Ordenado por criacao."""
+    result: dict[int, tuple[models.Pelada, str]] = {}
+    for pelada in user.owned_peladas:
+        result[pelada.id] = (pelada, "owner")
+    for membership in user.memberships:
+        result.setdefault(membership.pelada_id, (membership.pelada, membership.role))
+    return sorted(result.values(), key=lambda item: item[0].created_at)
+
+
+def user_can_access_pelada(user: models.User, pelada_id: int) -> bool:
+    if any(p.id == pelada_id for p in user.owned_peladas):
+        return True
+    return any(m.pelada_id == pelada_id for m in user.memberships)
+
+
+def create_pelada_for_user(
+    db: Session, user: models.User, name: str, location: str, match_time: str
+) -> models.Pelada:
+    pelada = models.Pelada(name=name, location=location, match_time=match_time, owner_user_id=user.id)
+    db.add(pelada)
+    db.flush()
+    db.add(models.PeladaMember(user_id=user.id, pelada_id=pelada.id, role="owner"))
+    user.active_pelada_id = pelada.id
+    db.commit()
+    db.refresh(user)
+    return pelada
+
+
+def select_pelada(db: Session, user: models.User, pelada_id: int) -> None:
+    if not user_can_access_pelada(user, pelada_id):
+        raise ValueError("Voce nao participa desta pelada.")
+    user.active_pelada_id = pelada_id
+    db.commit()
+    db.refresh(user)
+
+
+def _generate_unique_invite(db: Session) -> str:
+    while True:
+        code = secrets.token_urlsafe(6)
+        if not db.scalars(select(models.Pelada.id).where(models.Pelada.invite_code == code)).first():
+            return code
+
+
+def ensure_invite_code(db: Session, pelada: models.Pelada) -> str:
+    if not pelada.invite_code:
+        pelada.invite_code = _generate_unique_invite(db)
+        db.commit()
+    return pelada.invite_code
+
+
+def join_pelada_by_code(db: Session, user: models.User, code: str) -> models.Pelada:
+    pelada = db.scalars(select(models.Pelada).where(models.Pelada.invite_code == code.strip())).first()
+    if pelada is None:
+        raise ValueError("Codigo de convite invalido.")
+    if not user_can_access_pelada(user, pelada.id):
+        db.add(models.PeladaMember(user_id=user.id, pelada_id=pelada.id, role="member"))
+    user.active_pelada_id = pelada.id
+    db.commit()
+    db.refresh(user)
+    return pelada
 
 
 # --- Confirmacao de presenca (link publico) ---
@@ -122,6 +194,38 @@ def rotate_confirmation_token(db: Session, pelada: models.Pelada) -> str:
     pelada.public_token = _generate_unique_token(db)
     db.commit()
     return pelada.public_token
+
+
+def register_device_token(db: Session, user: models.User, token: str, platform: str) -> models.DeviceToken:
+    existing = db.scalars(select(models.DeviceToken).where(models.DeviceToken.token == token)).first()
+    if existing:
+        existing.user_id = user.id
+        existing.platform = platform
+        db.commit()
+        db.refresh(existing)
+        return existing
+    device = models.DeviceToken(user_id=user.id, token=token, platform=platform)
+    db.add(device)
+    db.commit()
+    db.refresh(device)
+    return device
+
+
+def delete_device_token(db: Session, token: str) -> None:
+    device = db.scalars(select(models.DeviceToken).where(models.DeviceToken.token == token)).first()
+    if device:
+        db.delete(device)
+        db.commit()
+
+
+def get_pelada_device_tokens(db: Session, pelada: models.Pelada) -> list[str]:
+    """Tokens de push dos usuarios ligados a pelada. Hoje: o dono (organizador).
+    Quando jogadores virarem usuarios (multi-pelada), incluira os membros."""
+    user_ids = [pelada.owner_user_id]
+    tokens = db.scalars(
+        select(models.DeviceToken.token).where(models.DeviceToken.user_id.in_(user_ids))
+    ).all()
+    return list(tokens)
 
 
 def set_player_presence(db: Session, pelada: models.Pelada, player_id: int, status: str) -> models.Player:
@@ -244,6 +348,98 @@ def update_match_stats(
     return get_match(db, match.id, pelada_id)
 
 
+def increment_match_player_stats(
+    db: Session,
+    match: models.Match,
+    match_player_id: int,
+    goals_delta: int,
+    assists_delta: int,
+    pelada_id: int,
+) -> models.Match:
+    """Placar ao vivo: incrementa gols/assistencias de um jogador da partida (nao fica negativo)."""
+    if match.pelada_id != pelada_id:
+        raise ValueError("Pelada nao pertence a este usuario.")
+    match_player = next((mp for mp in match.players if mp.id == match_player_id), None)
+    if match_player is None:
+        raise ValueError("Jogador da partida nao encontrado.")
+    match_player.goals = max(0, match_player.goals + goals_delta)
+    match_player.assists = max(0, match_player.assists + assists_delta)
+    db.commit()
+    return get_match(db, match.id, pelada_id)
+
+
+def get_match_ratings(db: Session, match_id: int, pelada_id: int) -> dict[int, float]:
+    rows = db.execute(
+        select(models.PlayerRating.player_id, models.PlayerRating.score).where(
+            models.PlayerRating.match_id == match_id,
+            models.PlayerRating.pelada_id == pelada_id,
+        )
+    ).all()
+    return {player_id: score for player_id, score in rows}
+
+
+def save_match_ratings(
+    db: Session,
+    match: models.Match,
+    ratings: list[tuple[int, float]],
+    pelada_id: int,
+) -> None:
+    """Salva/atualiza as notas pos-jogo e realimenta o rating do jogador (media das notas)."""
+    validate_match_integrity(db, match, pelada_id)
+    match_player_ids = {mp.player_id for mp in match.players}
+
+    existing = {
+        rating.player_id: rating
+        for rating in db.scalars(
+            select(models.PlayerRating).where(
+                models.PlayerRating.match_id == match.id,
+                models.PlayerRating.pelada_id == pelada_id,
+            )
+        ).all()
+    }
+
+    affected: set[int] = set()
+    for player_id, score in ratings:
+        if player_id not in match_player_ids:
+            raise ValueError("Jogador avaliado nao participou desta pelada.")
+        clamped = min(5.0, max(0.0, float(score)))
+        if player_id in existing:
+            existing[player_id].score = clamped
+        else:
+            db.add(
+                models.PlayerRating(
+                    pelada_id=pelada_id,
+                    match_id=match.id,
+                    player_id=player_id,
+                    score=clamped,
+                )
+            )
+        affected.add(player_id)
+
+    db.flush()
+    for player_id in affected:
+        _recompute_player_rating(db, player_id, pelada_id)
+    db.commit()
+
+
+def _recompute_player_rating(db: Session, player_id: int, pelada_id: int) -> None:
+    """Rating do jogador = media das notas recebidas nas peladas (evolucao ao longo do tempo)."""
+    scores = list(
+        db.scalars(
+            select(models.PlayerRating.score).where(
+                models.PlayerRating.player_id == player_id,
+                models.PlayerRating.pelada_id == pelada_id,
+            )
+        ).all()
+    )
+    if not scores:
+        return
+    average = round(sum(scores) / len(scores), 1)
+    player = get_player(db, player_id, pelada_id)
+    if player is not None:
+        player.rating = min(5.0, max(0.0, average))
+
+
 def delete_match(db: Session, match: models.Match) -> None:
     db.delete(match)
     db.commit()
@@ -284,6 +480,101 @@ def get_player_profile(db: Session, player: models.Player, pelada_id: int) -> sc
             for entry in entries
         ],
     )
+
+
+# --- Financeiro ---
+
+def _finance_entry_read(entry: models.FinanceEntry) -> schemas.FinanceEntryRead:
+    return schemas.FinanceEntryRead(
+        id=entry.id,
+        kind=entry.kind,
+        amount=entry.amount,
+        description=entry.description,
+        player_id=entry.player_id,
+        player_name=entry.player.name if entry.player else None,
+        created_at=entry.created_at,
+    )
+
+
+def get_finance_overview(db: Session, pelada: models.Pelada) -> schemas.FinanceOverview:
+    entries = list(
+        db.scalars(
+            select(models.FinanceEntry)
+            .where(models.FinanceEntry.pelada_id == pelada.id)
+            .options(selectinload(models.FinanceEntry.player))
+            .order_by(models.FinanceEntry.created_at.desc())
+        ).all()
+    )
+    income = sum(e.amount for e in entries if e.kind == "income")
+    expense = sum(e.amount for e in entries if e.kind == "expense")
+    mensalistas = [p for p in get_players(db, pelada.id) if p.billing_type == "mensalista"]
+    return schemas.FinanceOverview(
+        daily_fee=pelada.daily_fee,
+        total_income=round(income, 2),
+        total_expense=round(expense, 2),
+        balance=round(income - expense, 2),
+        mensalistas=[
+            schemas.MensalistaStatus(player_id=p.id, name=p.name, has_paid=p.has_paid) for p in mensalistas
+        ],
+        entries=[_finance_entry_read(e) for e in entries],
+    )
+
+
+def create_finance_entry(db: Session, pelada_id: int, data: schemas.FinanceEntryCreate) -> models.FinanceEntry:
+    if data.player_id is not None and get_player(db, data.player_id, pelada_id) is None:
+        raise ValueError("Jogador nao encontrado nesta pelada.")
+    entry = models.FinanceEntry(
+        pelada_id=pelada_id,
+        kind=data.kind,
+        amount=data.amount,
+        description=data.description,
+        player_id=data.player_id,
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry
+
+
+def get_finance_entry(db: Session, entry_id: int, pelada_id: int) -> models.FinanceEntry | None:
+    return db.scalars(
+        select(models.FinanceEntry).where(
+            models.FinanceEntry.id == entry_id, models.FinanceEntry.pelada_id == pelada_id
+        )
+    ).first()
+
+
+def delete_finance_entry(db: Session, entry: models.FinanceEntry) -> None:
+    db.delete(entry)
+    db.commit()
+
+
+def set_daily_fee(db: Session, pelada: models.Pelada, daily_fee: float) -> None:
+    pelada.daily_fee = max(0.0, daily_fee)
+    db.commit()
+
+
+def collect_daily_from_confirmed(db: Session, pelada: models.Pelada) -> models.FinanceEntry | None:
+    """Lanca uma entrada = diaria x (diaristas confirmados). Retorna None se nao houver o que cobrar."""
+    if pelada.daily_fee <= 0:
+        raise ValueError("Configure o valor da diaria primeiro.")
+    confirmed_diaristas = [
+        p for p in get_players(db, pelada.id) if p.is_active and p.billing_type == "diarista"
+    ]
+    if not confirmed_diaristas:
+        return None
+    total = round(pelada.daily_fee * len(confirmed_diaristas), 2)
+    entry = models.FinanceEntry(
+        pelada_id=pelada.id,
+        kind="income",
+        amount=total,
+        description=f"Diárias ({len(confirmed_diaristas)} jogadores)",
+        player_id=None,
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry
 
 
 def _validate_match_payload(db: Session, match_data: schemas.MatchCreate, pelada_id: int) -> None:

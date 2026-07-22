@@ -57,6 +57,10 @@ export function avatarColor(name: string): string {
   return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
 }
 
+export function formatMoney(value: number): string {
+  return `R$ ${Number(value).toFixed(2).replace('.', ',')}`;
+}
+
 export function greeting(): string {
   const h = new Date().getHours();
   if (h < 12) return 'Bom dia';

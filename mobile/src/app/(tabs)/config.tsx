@@ -1,16 +1,20 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import { PeladaSwitcherSheet } from '@/components/PeladaSwitcherSheet';
 import { Screen } from '@/components/Screen';
 import { ServerUrlField } from '@/components/ServerUrlField';
 import { Field, GhostButton, PrimaryButton, Segmented } from '@/components/form';
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import type { BillingType } from '@/lib/types';
-import { colors, radius, spacing } from '@/theme';
+import { colors, fonts, radius, spacing } from '@/theme';
 
 export default function ConfigScreen() {
   const { session, signOut, refresh } = useAuth();
+  const router = useRouter();
 
   const [name, setName] = useState(session?.pelada.name ?? '');
   const [location, setLocation] = useState(session?.pelada.location ?? '');
@@ -18,6 +22,7 @@ export default function ConfigScreen() {
   const [billing, setBilling] = useState<BillingType>(session?.pelada.default_billing_type ?? 'diarista');
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
 
   if (!session) return null;
 
@@ -69,6 +74,26 @@ export default function ConfigScreen() {
         <PrimaryButton label="Salvar pelada" onPress={savePelada} loading={saving} />
       </View>
 
+      <TouchableOpacity style={styles.navRow} onPress={() => setSwitcherOpen(true)} activeOpacity={0.7}>
+        <Ionicons name="swap-horizontal" size={22} color={colors.ink} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.navTitle}>Minhas peladas</Text>
+          <Text style={styles.navSub}>Trocar, criar ou entrar em outra pelada</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.ink4} />
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.navRow} onPress={() => router.push('/financeiro')} activeOpacity={0.7}>
+        <Ionicons name="cash-outline" size={22} color={colors.ink} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.navTitle}>Financeiro</Text>
+          <Text style={styles.navSub}>Caixa, diária, entradas/saídas e mensalistas</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.ink4} />
+      </TouchableOpacity>
+
+      <PeladaSwitcherSheet visible={switcherOpen} onClose={() => setSwitcherOpen(false)} />
+
       <View style={styles.card}>
         <Text style={styles.section}>Conta</Text>
         <View>
@@ -87,7 +112,7 @@ export default function ConfigScreen() {
 }
 
 const styles = StyleSheet.create({
-  title: { color: colors.ink, fontSize: 26, fontWeight: '800' },
+  title: { color: colors.ink, fontSize: 28, fontFamily: fonts.extrabold },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.cardMd,
@@ -101,4 +126,16 @@ const styles = StyleSheet.create({
   value: { color: colors.ink, fontSize: 15, fontWeight: '600' },
   feedback: { color: colors.greenB, fontSize: 13, fontWeight: '600' },
   hint: { color: colors.ink3, fontSize: 13, lineHeight: 18 },
+  navRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.three,
+    backgroundColor: colors.surface,
+    borderRadius: radius.cardMd,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.four,
+  },
+  navTitle: { color: colors.ink, fontSize: 15, fontWeight: '700' },
+  navSub: { color: colors.ink3, fontSize: 12 },
 });

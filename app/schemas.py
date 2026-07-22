@@ -62,6 +62,7 @@ class PeladaRead(BaseModel):
     location: str
     match_time: str
     default_billing_type: BillingType
+    daily_fee: float = 0
     created_at: datetime
 
 
@@ -75,6 +76,34 @@ class PeladaUpdate(BaseModel):
     @classmethod
     def strip_text(cls, value: str) -> str:
         return value.strip()
+
+
+class PeladaCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=120)
+    location: str = Field(default="", max_length=160)
+    match_time: str = Field(default="20:00", pattern=r"^\d{2}:\d{2}$")
+
+    @field_validator("name", "location")
+    @classmethod
+    def strip_text(cls, value: str) -> str:
+        return value.strip()
+
+
+class PeladaMembershipRead(BaseModel):
+    id: int
+    name: str
+    location: str
+    match_time: str
+    role: str
+    is_active: bool
+
+
+class JoinPeladaRequest(BaseModel):
+    invite_code: str = Field(..., min_length=1, max_length=20)
+
+
+class InviteCodeResponse(BaseModel):
+    invite_code: str
 
 
 class AuthMeResponse(BaseModel):
@@ -200,6 +229,26 @@ class MatchStatsUpdate(BaseModel):
     players: list[MatchStatsPlayerUpdate]
 
 
+class MatchPlayerEvent(BaseModel):
+    # Placar ao vivo: variacao de gols/assistencias (aceita negativo para desfazer).
+    goals_delta: int = Field(default=0, ge=-20, le=20)
+    assists_delta: int = Field(default=0, ge=-20, le=20)
+
+
+class MatchRatingItem(BaseModel):
+    player_id: int
+    score: float = Field(..., ge=0, le=5)
+
+
+class MatchRatingsUpdate(BaseModel):
+    ratings: list[MatchRatingItem]
+
+
+class MatchRatingRead(BaseModel):
+    player_id: int
+    score: float
+
+
 class MatchPlayerRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -313,3 +362,65 @@ class PublicConfirmationView(BaseModel):
 
 class PublicPresenceUpdate(BaseModel):
     status: PresenceStatus
+
+
+# --- Push notifications ---
+
+
+class DeviceTokenRegister(BaseModel):
+    token: str = Field(..., min_length=1, max_length=255)
+    platform: str = Field(default="", max_length=20)
+
+
+class DeviceTokenDelete(BaseModel):
+    token: str = Field(..., min_length=1, max_length=255)
+
+
+class OkResponse(BaseModel):
+    ok: bool
+
+
+# --- Financeiro ---
+
+FinanceKind = Literal["income", "expense"]
+
+
+class FinanceSettingsUpdate(BaseModel):
+    daily_fee: float = Field(..., ge=0, le=100000)
+
+
+class FinanceEntryCreate(BaseModel):
+    kind: FinanceKind
+    amount: float = Field(..., gt=0, le=1000000)
+    description: str = Field(default="", max_length=160)
+    player_id: int | None = None
+
+    @field_validator("description")
+    @classmethod
+    def strip_description(cls, value: str) -> str:
+        return value.strip()
+
+
+class FinanceEntryRead(BaseModel):
+    id: int
+    kind: FinanceKind
+    amount: float
+    description: str
+    player_id: int | None
+    player_name: str | None
+    created_at: datetime
+
+
+class MensalistaStatus(BaseModel):
+    player_id: int
+    name: str
+    has_paid: bool
+
+
+class FinanceOverview(BaseModel):
+    daily_fee: float
+    total_income: float
+    total_expense: float
+    balance: float
+    mensalistas: list[MensalistaStatus]
+    entries: list[FinanceEntryRead]

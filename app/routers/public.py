@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app import crud, models, schemas
 from app.database import get_db
+from app.services.push import send_push
 
 
 # Rotas publicas (sem autenticacao) para a pagina de confirmacao de presenca.
@@ -45,16 +46,36 @@ def get_confirmation(token: str, db: Session = Depends(get_db)):
     return _build_view(db, pelada)
 
 
+_PRESENCE_LABEL = {
+    "confirmed": "confirmou presença ✅",
+    "declined": "não vai ❌",
+    "pending": "ficou pendente",
+}
+
+
 @router.post("/confirmation/{token}/players/{player_id}", response_model=schemas.PublicConfirmationView)
 def set_confirmation(
     token: str,
     player_id: int,
     payload: schemas.PublicPresenceUpdate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     pelada = _load_pelada(db, token)
     try:
-        crud.set_player_presence(db, pelada, player_id, payload.status)
+        player = crud.set_player_presence(db, pelada, player_id, payload.status)
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+
+    # Notifica o organizador (em background, best-effort) que alguem respondeu a convocacao.
+    tokens = crud.get_pelada_device_tokens(db, pelada)
+    if tokens:
+        background_tasks.add_task(
+            send_push,
+            tokens,
+            pelada.name,
+            f"{player.name} {_PRESENCE_LABEL.get(payload.status, 'atualizou a presença')}",
+            {"type": "presence", "player_id": player.id, "status": payload.status},
+        )
+
     return _build_view(db, pelada)

@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react';
 import { ActivityIndicator, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-import { colors, radius, spacing } from '@/theme';
+import { colors, fonts, radius, spacing } from '@/theme';
 
 export function Field({ label, ...props }: { label: string } & ComponentProps<typeof TextInput>) {
   return (
@@ -109,7 +109,7 @@ export function GhostButton({
 
 const styles = StyleSheet.create({
   field: { gap: spacing.one },
-  label: { color: colors.ink3, fontSize: 12, fontWeight: '700' },
+  label: { color: colors.ink3, fontSize: 12, fontFamily: fonts.bold },
   input: {
     backgroundColor: colors.page,
     borderRadius: radius.input,
@@ -119,6 +119,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.three,
     color: colors.ink,
     fontSize: 15,
+    fontFamily: fonts.medium,
   },
   segmented: { flexDirection: 'row', gap: spacing.two },
   segment: {
@@ -131,7 +132,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.page,
   },
   segmentActive: { backgroundColor: colors.dark, borderColor: colors.dark },
-  segmentText: { color: colors.ink2, fontWeight: '600', fontSize: 13 },
+  segmentText: { color: colors.ink2, fontFamily: fonts.semibold, fontSize: 13 },
   segmentTextActive: { color: colors.onDark },
   switchRow: {
     flexDirection: 'row',
@@ -139,14 +140,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: spacing.one,
   },
-  switchLabel: { color: colors.ink, fontSize: 14, fontWeight: '600', flex: 1 },
+  switchLabel: { color: colors.ink, fontSize: 14, fontFamily: fonts.semibold, flex: 1 },
   primary: {
     backgroundColor: colors.dark,
     borderRadius: radius.btn,
     paddingVertical: spacing.four,
     alignItems: 'center',
   },
-  primaryText: { color: colors.onDark, fontSize: 15, fontWeight: '700' },
+  primaryText: { color: colors.onDark, fontSize: 15, fontFamily: fonts.bold },
   disabled: { opacity: 0.6 },
   ghost: {
     borderRadius: radius.btn,
@@ -155,6 +156,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.raised,
   },
   ghostDanger: { backgroundColor: colors.absBg },
-  ghostText: { color: colors.ink, fontWeight: '700', fontSize: 14 },
+  ghostText: { color: colors.ink, fontFamily: fonts.bold, fontSize: 14 },
   ghostTextDanger: { color: colors.absT },
 });

@@ -85,6 +85,39 @@ class PresenceConfirmationTest(unittest.TestCase):
         finally:
             db.close()
 
+    def test_register_device_token_is_upsert(self):
+        db = _new_session()
+        try:
+            pelada = _make_pelada(db)
+            owner = db.get(models.User, pelada.owner_user_id)
+
+            crud.register_device_token(db, owner, "ExponentPushToken[abc]", "android")
+            crud.register_device_token(db, owner, "ExponentPushToken[abc]", "ios")  # mesmo token -> atualiza
+
+            tokens = crud.get_pelada_device_tokens(db, pelada)
+            self.assertEqual(tokens, ["ExponentPushToken[abc]"])
+
+            crud.delete_device_token(db, "ExponentPushToken[abc]")
+            self.assertEqual(crud.get_pelada_device_tokens(db, pelada), [])
+        finally:
+            db.close()
+
+    def test_pelada_device_tokens_scoped_to_owner(self):
+        db = _new_session()
+        try:
+            pelada = _make_pelada(db)
+            owner = db.get(models.User, pelada.owner_user_id)
+            other = models.User(email="b@example.com", password_hash="x")
+            db.add(other)
+            db.commit()
+
+            crud.register_device_token(db, owner, "ExponentPushToken[owner]", "android")
+            crud.register_device_token(db, other, "ExponentPushToken[other]", "android")
+
+            self.assertEqual(crud.get_pelada_device_tokens(db, pelada), ["ExponentPushToken[owner]"])
+        finally:
+            db.close()
+
     def test_deactivate_all_resets_presence_to_pending(self):
         db = _new_session()
         try:

@@ -13,7 +13,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatPosition, formatRating } from '@/lib/format';
 import type { Player } from '@/lib/types';
-import { colors, radius, spacing } from '@/theme';
+import { colors, fonts, radius, spacing } from '@/theme';
 
 type Filter = 'todos' | 'conf' | 'pend';
 
@@ -214,8 +214,8 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.page },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { color: colors.ink, fontSize: 26, fontWeight: '800' },
-  subtitle: { color: colors.ink3, fontSize: 13 },
+  title: { color: colors.ink, fontSize: 28, fontFamily: fonts.extrabold },
+  subtitle: { color: colors.ink3, fontSize: 13, fontFamily: fonts.regular },
   newBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.two,
   },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.two },
-  rowName: { color: colors.ink, fontSize: 15, fontWeight: '700' },
+  rowName: { color: colors.ink, fontSize: 15, fontFamily: fonts.bold },
   declinedBadge: { backgroundColor: colors.absBg, paddingHorizontal: spacing.two, paddingVertical: 1, borderRadius: radius.badge },
   declinedText: { color: colors.absT, fontSize: 10, fontWeight: '700' },
   rowMeta: { color: colors.ink3, fontSize: 12 },

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
 import { useAuth } from '@/lib/auth';
-import { colors } from '@/theme';
+import { colors, fonts } from '@/theme';
 
 export default function TabsLayout() {
   const { session } = useAuth();
@@ -20,8 +20,11 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
+          height: 62,
+          paddingBottom: 8,
+          paddingTop: 6,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 11, fontFamily: fonts.semibold },
       }}>
       <Tabs.Screen
         name="index"

@@ -3,9 +3,12 @@ import { getToken } from './storage';
 import type {
   AuthMe,
   ConfirmationLink,
+  FinanceOverview,
   MatchListItem,
+  MatchRating,
   MatchRead,
   Pelada,
+  PeladaMembership,
   Player,
   PlayerPayload,
   PlayerProfile,
@@ -80,12 +83,21 @@ export const api = {
   updatePelada: (payload: Pick<Pelada, 'name' | 'location' | 'match_time' | 'default_billing_type'>) =>
     request<AuthMe>('/api/auth/pelada', { method: 'PUT', json: payload }),
 
+  listPeladas: () => request<PeladaMembership[]>('/api/peladas'),
+  createPelada: (payload: { name: string; location?: string; match_time?: string }) =>
+    request<AuthMe>('/api/peladas', { method: 'POST', json: payload }),
+  selectPelada: (id: number) => request<AuthMe>(`/api/peladas/${id}/select`, { method: 'POST' }),
+  joinPelada: (invite_code: string) =>
+    request<AuthMe>('/api/peladas/join', { method: 'POST', json: { invite_code } }),
+  getInviteCode: () => request<{ invite_code: string }>('/api/peladas/invite-code'),
+
   listPlayers: () => request<Player[]>('/api/players'),
   createPlayer: (payload: PlayerPayload) => request<Player>('/api/players', { method: 'POST', json: payload }),
   updatePlayer: (id: number, payload: PlayerPayload) =>
     request<Player>(`/api/players/${id}`, { method: 'PUT', json: payload }),
   deletePlayer: (id: number) => request<void>(`/api/players/${id}`, { method: 'DELETE' }),
   togglePlayer: (id: number) => request<Player>(`/api/players/${id}/toggle-active`, { method: 'PATCH' }),
+  togglePlayerPaid: (id: number) => request<Player>(`/api/players/${id}/toggle-paid`, { method: 'PATCH' }),
   deactivateAllPlayers: () => request<Player[]>('/api/players/deactivate-all', { method: 'PATCH' }),
   playerProfile: (id: number) => request<PlayerProfile>(`/api/players/${id}/profile`),
 
@@ -98,10 +110,35 @@ export const api = {
   deleteMatch: (id: number) => request<void>(`/api/matches/${id}`, { method: 'DELETE' }),
   updateMatchStats: (id: number, payload: unknown) =>
     request<MatchRead>(`/api/matches/${id}/stats`, { method: 'PUT', json: payload }),
+  matchEvent: (matchId: number, matchPlayerId: number, goals_delta: number, assists_delta: number) =>
+    request<MatchRead>(`/api/matches/${matchId}/players/${matchPlayerId}/event`, {
+      method: 'POST',
+      json: { goals_delta, assists_delta },
+    }),
+  getMatchRatings: (matchId: number) => request<MatchRating[]>(`/api/matches/${matchId}/ratings`),
+  saveMatchRatings: (matchId: number, ratings: MatchRating[]) =>
+    request<MatchRead>(`/api/matches/${matchId}/ratings`, { method: 'POST', json: { ratings } }),
 
   rankings: () => request<RankingsSummary>('/api/rankings/summary'),
 
   confirmationLink: () => request<ConfirmationLink>('/api/peladas/confirmation-link', { method: 'POST' }),
   rotateConfirmationLink: () =>
     request<ConfirmationLink>('/api/peladas/confirmation-link/rotate', { method: 'POST' }),
+
+  registerDevice: (token: string, platform: string) =>
+    request<{ ok: boolean }>('/api/devices', { method: 'POST', json: { token, platform } }),
+  unregisterDevice: (token: string) =>
+    request<{ ok: boolean }>('/api/devices', { method: 'DELETE', json: { token } }),
+
+  getFinance: () => request<FinanceOverview>('/api/finance'),
+  setDailyFee: (daily_fee: number) =>
+    request<FinanceOverview>('/api/finance/settings', { method: 'PUT', json: { daily_fee } }),
+  addFinanceEntry: (entry: {
+    kind: 'income' | 'expense';
+    amount: number;
+    description: string;
+    player_id?: number | null;
+  }) => request<FinanceOverview>('/api/finance', { method: 'POST', json: entry }),
+  collectDaily: () => request<FinanceOverview>('/api/finance/collect-daily', { method: 'POST' }),
+  deleteFinanceEntry: (id: number) => request<FinanceOverview>(`/api/finance/${id}`, { method: 'DELETE' }),
 };

@@ -62,6 +62,60 @@ def update_match_stats(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
 
+@router.post("/{match_id}/players/{match_player_id}/event", response_model=schemas.MatchRead)
+def register_match_event(
+    match_id: int,
+    match_player_id: int,
+    event: schemas.MatchPlayerEvent,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_user),
+):
+    """Placar ao vivo: incrementa gol/assistencia de um jogador da partida."""
+    pelada = get_current_pelada(current_user)
+    match = crud.get_match(db, match_id, pelada.id)
+    if match is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pelada nao encontrada.")
+    try:
+        return crud.increment_match_player_stats(
+            db, match, match_player_id, event.goals_delta, event.assists_delta, pelada.id
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+
+@router.get("/{match_id}/ratings", response_model=list[schemas.MatchRatingRead])
+def get_match_ratings(
+    match_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_user),
+):
+    pelada = get_current_pelada(current_user)
+    match = crud.get_match(db, match_id, pelada.id)
+    if match is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pelada nao encontrada.")
+    ratings = crud.get_match_ratings(db, match_id, pelada.id)
+    return [schemas.MatchRatingRead(player_id=pid, score=score) for pid, score in ratings.items()]
+
+
+@router.post("/{match_id}/ratings", response_model=schemas.MatchRead)
+def save_match_ratings(
+    match_id: int,
+    payload: schemas.MatchRatingsUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_user),
+):
+    """Avaliacao pos-jogo: salva as notas e realimenta o rating dos jogadores."""
+    pelada = get_current_pelada(current_user)
+    match = crud.get_match(db, match_id, pelada.id)
+    if match is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pelada nao encontrada.")
+    try:
+        crud.save_match_ratings(db, match, [(r.player_id, r.score) for r in payload.ratings], pelada.id)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+    return crud.get_match(db, match_id, pelada.id)
+
+
 @router.delete("/{match_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_match(
     match_id: int,

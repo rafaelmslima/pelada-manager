@@ -31,11 +31,13 @@ def ensure_legacy_multitenant_columns(target_engine: Engine = engine) -> None:
 
     # Mapa coluna -> DDL para cada tabela (usado apenas em SQLite legado).
     required_by_table = {
+        "users": {"active_pelada_id": "INTEGER"},
         "peladas": {
             "location": "TEXT NOT NULL DEFAULT ''",
             "match_time": "TEXT NOT NULL DEFAULT '20:00'",
             "default_billing_type": "TEXT NOT NULL DEFAULT 'diarista'",
             "public_token": "TEXT",
+            "invite_code": "TEXT",
         },
         "players": {
             "pelada_id": "INTEGER",
@@ -67,10 +69,117 @@ _POSTGRES_ENSURE_STATEMENTS = [
     "ALTER TABLE peladas ADD COLUMN IF NOT EXISTS location VARCHAR(160) NOT NULL DEFAULT ''",
     "ALTER TABLE peladas ADD COLUMN IF NOT EXISTS match_time VARCHAR(20) NOT NULL DEFAULT '20:00'",
     "ALTER TABLE peladas ADD COLUMN IF NOT EXISTS default_billing_type VARCHAR(20) NOT NULL DEFAULT 'diarista'",
+    "ALTER TABLE peladas ADD COLUMN IF NOT EXISTS daily_fee DOUBLE PRECISION NOT NULL DEFAULT 0",
     "ALTER TABLE peladas ADD COLUMN IF NOT EXISTS public_token VARCHAR(64)",
     "CREATE UNIQUE INDEX IF NOT EXISTS ix_peladas_public_token ON peladas (public_token)",
     "ALTER TABLE players ADD COLUMN IF NOT EXISTS presence VARCHAR(20) NOT NULL DEFAULT 'pending'",
     "UPDATE players SET presence = 'confirmed' WHERE is_active AND presence = 'pending'",
+    (
+        "CREATE TABLE IF NOT EXISTS device_tokens ("
+        " id SERIAL PRIMARY KEY,"
+        " user_id INTEGER NOT NULL REFERENCES users(id),"
+        " token VARCHAR(255) NOT NULL UNIQUE,"
+        " platform VARCHAR(20) NOT NULL DEFAULT '',"
+        " created_at TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc')"
+        ")"
+    ),
+    "CREATE INDEX IF NOT EXISTS ix_device_tokens_user_id ON device_tokens (user_id)",
+    (
+        "CREATE TABLE IF NOT EXISTS player_ratings ("
+        " id SERIAL PRIMARY KEY,"
+        " pelada_id INTEGER NOT NULL REFERENCES peladas(id),"
+        " match_id INTEGER NOT NULL REFERENCES matches(id),"
+        " player_id INTEGER NOT NULL REFERENCES players(id),"
+        " score DOUBLE PRECISION NOT NULL,"
+        " created_at TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc'),"
+        " CONSTRAINT uq_player_rating_match_player UNIQUE (match_id, player_id)"
+        ")"
+    ),
+    "CREATE INDEX IF NOT EXISTS ix_player_ratings_player_id ON player_ratings (player_id)",
+    (
+        "CREATE TABLE IF NOT EXISTS finance_entries ("
+        " id SERIAL PRIMARY KEY,"
+        " pelada_id INTEGER NOT NULL REFERENCES peladas(id),"
+        " kind VARCHAR(10) NOT NULL,"
+        " amount DOUBLE PRECISION NOT NULL,"
+        " description VARCHAR(160) NOT NULL DEFAULT '',"
+        " player_id INTEGER REFERENCES players(id),"
+        " created_at TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc')"
+        ")"
+    ),
+    "CREATE INDEX IF NOT EXISTS ix_finance_entries_pelada_id ON finance_entries (pelada_id)",
+    # Multi-pelada
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS active_pelada_id INTEGER",
+    "ALTER TABLE peladas ADD COLUMN IF NOT EXISTS invite_code VARCHAR(20)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS ix_peladas_invite_code ON peladas (invite_code)",
+    # Permite um usuario ter varias peladas (remove o unique antigo do dono).
+    "ALTER TABLE peladas DROP CONSTRAINT IF EXISTS peladas_owner_user_id_key",
+    (
+        "CREATE TABLE IF NOT EXISTS pelada_members ("
+        " id SERIAL PRIMARY KEY,"
+        " user_id INTEGER NOT NULL REFERENCES users(id),"
+        " pelada_id INTEGER NOT NULL REFERENCES peladas(id),"
+        " role VARCHAR(20) NOT NULL DEFAULT 'member',"
+        " created_at TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc'),"
+        " CONSTRAINT uq_pelada_member UNIQUE (user_id, pelada_id)"
+        ")"
+    ),
+    "CREATE INDEX IF NOT EXISTS ix_pelada_members_user_id ON pelada_members (user_id)",
+    # Backfill: dono vira membro 'owner' e ganha pelada ativa.
+    (
+        "INSERT INTO pelada_members (user_id, pelada_id, role, created_at)"
+        " SELECT owner_user_id, id, 'owner', (now() AT TIME ZONE 'utc') FROM peladas p"
+        " WHERE NOT EXISTS (SELECT 1 FROM pelada_members m WHERE m.pelada_id = p.id AND m.user_id = p.owner_user_id)"
+    ),
+    (
+        "UPDATE users SET active_pelada_id ="
+        " (SELECT p.id FROM peladas p WHERE p.owner_user_id = users.id ORDER BY p.id LIMIT 1)"
+        " WHERE active_pelada_id IS NULL"
+    ),
+]
+
+_SQLITE_ENSURE_STATEMENTS = [
+    (
+        "CREATE TABLE IF NOT EXISTS device_tokens ("
+        " id INTEGER PRIMARY KEY,"
+        " user_id INTEGER NOT NULL,"
+        " token VARCHAR(255) NOT NULL UNIQUE,"
+        " platform VARCHAR(20) NOT NULL DEFAULT '',"
+        " created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
+        ")"
+    ),
+    (
+        "CREATE TABLE IF NOT EXISTS player_ratings ("
+        " id INTEGER PRIMARY KEY,"
+        " pelada_id INTEGER NOT NULL,"
+        " match_id INTEGER NOT NULL,"
+        " player_id INTEGER NOT NULL,"
+        " score REAL NOT NULL,"
+        " created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+        " UNIQUE (match_id, player_id)"
+        ")"
+    ),
+    (
+        "CREATE TABLE IF NOT EXISTS finance_entries ("
+        " id INTEGER PRIMARY KEY,"
+        " pelada_id INTEGER NOT NULL,"
+        " kind VARCHAR(10) NOT NULL,"
+        " amount REAL NOT NULL,"
+        " description VARCHAR(160) NOT NULL DEFAULT '',"
+        " player_id INTEGER,"
+        " created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
+        ")"
+    ),
+    (
+        "CREATE TABLE IF NOT EXISTS pelada_members ("
+        " id INTEGER PRIMARY KEY,"
+        " user_id INTEGER NOT NULL,"
+        " pelada_id INTEGER NOT NULL,"
+        " role VARCHAR(20) NOT NULL DEFAULT 'member',"
+        " created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+        " UNIQUE (user_id, pelada_id)"
+        ")"
+    ),
 ]
 
 
@@ -80,6 +189,12 @@ def ensure_schema_columns(target_engine: Engine = engine) -> None:
     if dialect == "sqlite":
         # A rotina PRAGMA ja cobre as colunas novas (inclui presence/public_token).
         ensure_legacy_multitenant_columns(target_engine)
+        for statement in _SQLITE_ENSURE_STATEMENTS:
+            try:
+                with target_engine.begin() as connection:
+                    connection.execute(text(statement))
+            except Exception as error:  # noqa: BLE001 - startup defensivo
+                print(f"[ensure_schema_columns] ignorado: {statement!r} -> {error}")
         try:
             with target_engine.begin() as connection:
                 connection.execute(

@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 
 import { api } from './api';
 import { setApiBaseUrlOverride } from './config';
+import { registerForPushNotifications, unregisterCurrentDevice } from './push';
 import { clearToken, getApiUrl, getToken, saveToken } from './storage';
 import type { AuthMe } from './types';
 
@@ -13,6 +14,7 @@ type AuthContextValue = {
   signUp: (payload: { name: string; email: string; password: string; pelada_name: string | null }) => Promise<void>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
+  applyAuth: (me: AuthMe) => void;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -73,6 +75,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     bootstrap();
   }, [bootstrap]);
 
+  // Quando há sessão, registra o device para push (best-effort, não bloqueia).
+  useEffect(() => {
+    if (session) {
+      registerForPushNotifications();
+    }
+  }, [session]);
+
   const signIn = useCallback(async (email: string, password: string) => {
     const me = await api.login(email, password);
     if (me.token) await saveToken(me.token);
@@ -89,6 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
+    await unregisterCurrentDevice();
     try {
       await api.logout();
     } catch {
@@ -103,10 +113,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(me);
   }, []);
 
+  const applyAuth = useCallback((me: AuthMe) => {
+    // Mantém o token atual; endpoints de troca de pelada não reenviam token.
+    setSession((prev) => ({ ...me, token: prev?.token ?? me.token }));
+  }, []);
+
   useProtectedRoute(session, loading);
 
   return (
-    <AuthContext.Provider value={{ session, loading, signIn, signUp, signOut, refresh }}>
+    <AuthContext.Provider value={{ session, loading, signIn, signUp, signOut, refresh, applyAuth }}>
       {children}
     </AuthContext.Provider>
   );

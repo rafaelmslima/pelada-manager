@@ -61,4 +61,15 @@ export const spacing = {
   six: 32,
 } as const;
 
+// Fontes (mesmas da web): Bebas Neue para display (títulos/números grandes) e
+// Plus Jakarta Sans para o corpo. Carregadas em app/_layout.tsx.
+export const fonts = {
+  display: 'BebasNeue_400Regular',
+  regular: 'PlusJakartaSans_400Regular',
+  medium: 'PlusJakartaSans_500Medium',
+  semibold: 'PlusJakartaSans_600SemiBold',
+  bold: 'PlusJakartaSans_700Bold',
+  extrabold: 'PlusJakartaSans_800ExtraBold',
+} as const;
+
 export type ColorToken = keyof typeof colors;

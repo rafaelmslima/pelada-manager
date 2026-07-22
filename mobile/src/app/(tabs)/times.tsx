@@ -1,17 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { MatchStatsSheet } from '@/components/MatchStatsSheet';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
+import { RatingSheet } from '@/components/RatingSheet';
 import { Screen } from '@/components/Screen';
 import { Sheet } from '@/components/Sheet';
 import { GhostButton, PrimaryButton } from '@/components/form';
 import { api, ApiError } from '@/lib/api';
 import { formatDate, formatDateDisplay, formatPosition, formatRating } from '@/lib/format';
 import type { MatchListItem, TeamPlayer, TeamResult } from '@/lib/types';
-import { colors, radius, spacing } from '@/theme';
+import { colors, fonts, radius, spacing } from '@/theme';
 
 function recompute(team: TeamResult, players: TeamPlayer[]): TeamResult {
   const total = players.reduce((sum, p) => sum + p.rating, 0);
@@ -32,8 +33,11 @@ export default function TimesScreen() {
   const [saving, setSaving] = useState(false);
   const [moving, setMoving] = useState<{ player: TeamPlayer; fromIndex: number } | null>(null);
 
+  const router = useRouter();
   const [matches, setMatches] = useState<MatchListItem[]>([]);
   const [statsMatchId, setStatsMatchId] = useState<number | null>(null);
+  const [ratingMatchId, setRatingMatchId] = useState<number | null>(null);
+  const [matchActions, setMatchActions] = useState<MatchListItem | null>(null);
 
   const loadMatches = useCallback(() => {
     api.listMatches().then(setMatches).catch(() => {});
@@ -181,20 +185,19 @@ export default function TimesScreen() {
         <Text style={styles.emptyHistory}>Nenhuma pelada salva ainda.</Text>
       ) : (
         matches.map((match) => (
-          <View key={match.id} style={styles.matchCard}>
+          <TouchableOpacity
+            key={match.id}
+            style={styles.matchCard}
+            onPress={() => setMatchActions(match)}
+            activeOpacity={0.7}>
             <View style={{ flex: 1 }}>
               <Text style={styles.matchTitle}>{formatDateDisplay(match.date)}</Text>
               <Text style={styles.matchMeta}>
                 {match.team_count} times · {match.player_count} jogadores
               </Text>
             </View>
-            <TouchableOpacity onPress={() => setStatsMatchId(match.id)} style={styles.matchAction} hitSlop={6}>
-              <Ionicons name="stats-chart" size={18} color={colors.ink2} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => confirmDeleteMatch(match)} style={styles.matchAction} hitSlop={6}>
-              <Ionicons name="trash-outline" size={18} color={colors.absT} />
-            </TouchableOpacity>
-          </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.ink4} />
+          </TouchableOpacity>
         ))
       )}
 
@@ -207,10 +210,59 @@ export default function TimesScreen() {
         )}
       </Sheet>
 
+      {/* Ações da partida */}
+      <Sheet
+        visible={matchActions != null}
+        onClose={() => setMatchActions(null)}
+        title={matchActions ? formatDateDisplay(matchActions.date) : undefined}>
+        {matchActions && (
+          <>
+            <GhostButton
+              label="▶  Placar ao vivo"
+              onPress={() => {
+                const mid = matchActions.id;
+                setMatchActions(null);
+                router.push({ pathname: '/live/[matchId]', params: { matchId: String(mid) } });
+              }}
+            />
+            <GhostButton
+              label="Estatísticas (gols/assist.)"
+              onPress={() => {
+                setStatsMatchId(matchActions.id);
+                setMatchActions(null);
+              }}
+            />
+            <GhostButton
+              label="⭐  Avaliar jogadores"
+              onPress={() => {
+                setRatingMatchId(matchActions.id);
+                setMatchActions(null);
+              }}
+            />
+            <GhostButton
+              label="Excluir partida"
+              tone="danger"
+              onPress={() => {
+                const match = matchActions;
+                setMatchActions(null);
+                confirmDeleteMatch(match);
+              }}
+            />
+          </>
+        )}
+      </Sheet>
+
       <MatchStatsSheet
         visible={statsMatchId != null}
         matchId={statsMatchId}
         onClose={() => setStatsMatchId(null)}
+        onSaved={loadMatches}
+      />
+
+      <RatingSheet
+        visible={ratingMatchId != null}
+        matchId={ratingMatchId}
+        onClose={() => setRatingMatchId(null)}
         onSaved={loadMatches}
       />
     </Screen>
@@ -218,8 +270,8 @@ export default function TimesScreen() {
 }
 
 const styles = StyleSheet.create({
-  title: { color: colors.ink, fontSize: 26, fontWeight: '800' },
-  section: { color: colors.ink, fontSize: 18, fontWeight: '800' },
+  title: { color: colors.ink, fontSize: 28, fontFamily: fonts.extrabold },
+  section: { color: colors.ink, fontSize: 18, fontFamily: fonts.extrabold },
   sectionHint: { color: colors.ink3, fontSize: 13, lineHeight: 18 },
 
   generatorCard: {
@@ -262,7 +314,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.half,
     borderRadius: radius.badge,
   },
-  ratingBadgeText: { color: colors.gold, fontSize: 13, fontWeight: '800' },
+  ratingBadgeText: { color: colors.gold, fontSize: 14, fontFamily: fonts.display },
   teamPlayer: { flexDirection: 'row', alignItems: 'center', gap: spacing.two },
   teamPlayerName: { color: colors.ink, fontSize: 14, fontWeight: '600' },
   teamPlayerMeta: { color: colors.ink3, fontSize: 12 },

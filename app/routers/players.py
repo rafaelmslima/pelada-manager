@@ -91,3 +91,16 @@ def toggle_player_active(
     if player is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Jogador nao encontrado.")
     return crud.toggle_player_active(db, player)
+
+
+@router.patch("/{player_id}/toggle-paid", response_model=schemas.PlayerRead)
+def toggle_player_paid(
+    player_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_user),
+):
+    pelada = get_current_pelada(current_user)
+    player = crud.get_player(db, player_id, pelada.id)
+    if player is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Jogador nao encontrado.")
+    return crud.toggle_player_paid(db, player)
