@@ -1,0 +1,37 @@
+name: EAS Update (OTA)
+
+# Publica uma atualização OTA (JS/assets) no canal "preview" a cada push que
+# altere o app em mobile/. Mudanças NATIVAS (novo módulo, ícone, permissões)
+# não são entregues por OTA — nesses casos rode `eas build`.
+on:
+  push:
+    branches: [main]
+    paths: ['mobile/**']
+  workflow_dispatch: {} # permite disparar manualmente pela aba Actions
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Publish OTA update
+        run: eas update --branch preview --non-interactive --message "${{ github.event.head_commit.message || 'Manual update' }}"
