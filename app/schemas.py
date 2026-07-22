@@ -80,6 +80,9 @@ class AuthMeResponse(BaseModel):
     user: UserRead
     pelada: PeladaRead
     server_time: datetime
+    # Preenchido apenas no login/register para o app mobile (Bearer token).
+    # A web ignora este campo e continua usando o cookie de sessao.
+    token: str | None = None
 
 
 class PlayerBase(BaseModel):

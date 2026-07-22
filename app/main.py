@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -23,6 +24,20 @@ app = FastAPI(
     title="Pelada Manager",
     description="MVP para organizar jogadores e gerar times equilibrados.",
     version="0.2.0",
+)
+
+# CORS para o app mobile (Expo) consumir a API de outra origem.
+# Apps nativos nao aplicam CORS, mas isso habilita tambem o Expo Web e e inofensivo
+# para a web same-origin (que continua usando cookie). O mobile usa Bearer token,
+# entao nao precisamos de credenciais cross-origin.
+_cors_origins_env = os.getenv("CORS_ALLOW_ORIGINS", "*").strip()
+_cors_origins = [origin.strip() for origin in _cors_origins_env.split(",") if origin.strip()] or ["*"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")

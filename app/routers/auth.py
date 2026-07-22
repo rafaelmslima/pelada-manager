@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -13,6 +13,7 @@ from app.auth import (
     login_user,
     require_user,
     register_user,
+    resolve_session_token,
     serialize_current_user,
 )
 from app.database import get_db
@@ -28,8 +29,8 @@ def register(
     db: Session = Depends(get_db),
 ):
     user = register_user(db, payload)
-    create_session(response, db, user)
-    return serialize_current_user(user)
+    token = create_session(response, db, user)
+    return serialize_current_user(user, token=token)
 
 
 @router.post("/login", response_model=schemas.AuthMeResponse)
@@ -41,8 +42,8 @@ def login(
 ):
     enforce_rate_limit(f"login:{_client_key(request)}:{payload.email}", max_attempts=10, window_seconds=300)
     user = login_user(db, payload)
-    create_session(response, db, user)
-    return serialize_current_user(user)
+    token = create_session(response, db, user)
+    return serialize_current_user(user, token=token)
 
 
 @router.post("/admin-reset-password", response_model=schemas.AdminPasswordResetResponse)
@@ -61,8 +62,9 @@ def logout(
     response: Response,
     db: Session = Depends(get_db),
     session_token: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
 ):
-    clear_session(response, db, session_token)
+    clear_session(response, db, resolve_session_token(session_token, authorization))
     return {"ok": True}
 
 

@@ -1,0 +1,92 @@
+import { getApiBaseUrl } from './config';
+import { getToken } from './storage';
+import type {
+  AuthMe,
+  MatchListItem,
+  MatchRead,
+  Pelada,
+  Player,
+  PlayerPayload,
+  PlayerProfile,
+  RankingsSummary,
+  TeamGenerateResponse,
+} from './types';
+
+type RequestOptions = RequestInit & { json?: unknown };
+
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const headers = new Headers(options.headers);
+  const init: RequestInit = { ...options, headers };
+
+  // Auth por token (mobile): o backend também aceita cookie (web), mas aqui
+  // enviamos sempre o Bearer quando houver token salvo no device.
+  const token = await getToken();
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  if (options.json !== undefined) {
+    headers.set('Content-Type', 'application/json');
+    init.body = JSON.stringify(options.json);
+  }
+
+  const response = await fetch(`${getApiBaseUrl()}${path}`, init);
+
+  if (response.status === 204) {
+    return null as T;
+  }
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const detail = Array.isArray(data?.detail)
+      ? data.detail.map((item: { msg?: string }) => item.msg).filter(Boolean).join(' ')
+      : data?.detail;
+    throw new ApiError(detail || 'Não foi possível concluir a ação.', response.status);
+  }
+
+  return data as T;
+}
+
+export const api = {
+  me: () => request<AuthMe>('/api/auth/me'),
+  login: (email: string, password: string) =>
+    request<AuthMe>('/api/auth/login', { method: 'POST', json: { email, password } }),
+  resetPassword: (payload: { email: string; new_password: string; admin_secret: string }) =>
+    request<{ ok: boolean }>('/api/auth/admin-reset-password', { method: 'POST', json: payload }),
+  register: (payload: { name: string; email: string; password: string; pelada_name: string | null }) =>
+    request<AuthMe>('/api/auth/register', { method: 'POST', json: payload }),
+  logout: () => request<{ ok: boolean }>('/api/auth/logout', { method: 'POST' }),
+  updatePelada: (payload: Pick<Pelada, 'name' | 'location' | 'match_time' | 'default_billing_type'>) =>
+    request<AuthMe>('/api/auth/pelada', { method: 'PUT', json: payload }),
+
+  listPlayers: () => request<Player[]>('/api/players'),
+  createPlayer: (payload: PlayerPayload) => request<Player>('/api/players', { method: 'POST', json: payload }),
+  updatePlayer: (id: number, payload: PlayerPayload) =>
+    request<Player>(`/api/players/${id}`, { method: 'PUT', json: payload }),
+  deletePlayer: (id: number) => request<void>(`/api/players/${id}`, { method: 'DELETE' }),
+  togglePlayer: (id: number) => request<Player>(`/api/players/${id}/toggle-active`, { method: 'PATCH' }),
+  deactivateAllPlayers: () => request<Player[]>('/api/players/deactivate-all', { method: 'PATCH' }),
+  playerProfile: (id: number) => request<PlayerProfile>(`/api/players/${id}/profile`),
+
+  generateTeams: (players_per_team: number) =>
+    request<TeamGenerateResponse>('/api/teams/generate', { method: 'POST', json: { players_per_team } }),
+
+  listMatches: () => request<MatchListItem[]>('/api/matches'),
+  getMatch: (id: number) => request<MatchRead>(`/api/matches/${id}`),
+  createMatch: (payload: unknown) => request<MatchRead>('/api/matches', { method: 'POST', json: payload }),
+  deleteMatch: (id: number) => request<void>(`/api/matches/${id}`, { method: 'DELETE' }),
+  updateMatchStats: (id: number, payload: unknown) =>
+    request<MatchRead>(`/api/matches/${id}/stats`, { method: 'PUT', json: payload }),
+
+  rankings: () => request<RankingsSummary>('/api/rankings/summary'),
+};

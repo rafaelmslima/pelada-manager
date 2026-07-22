@@ -7,7 +7,7 @@ import secrets
 import time
 from datetime import UTC, datetime, timedelta
 
-from fastapi import Cookie, Depends, HTTPException, Response, status
+from fastapi import Cookie, Depends, Header, HTTPException, Response, status
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
@@ -44,7 +44,8 @@ def verify_password(password: str, password_hash: str) -> bool:
     return hmac.compare_digest(candidate.hex(), digest_hex)
 
 
-def create_session(response: Response, db: Session, user: models.User) -> None:
+def create_session(response: Response, db: Session, user: models.User) -> str:
+    """Cria uma sessao, seta o cookie (web) e retorna o token (mobile)."""
     token = secrets.token_urlsafe(48)
     db.add(models.UserSession(user_id=user.id, token=token))
     db.commit()
@@ -58,6 +59,7 @@ def create_session(response: Response, db: Session, user: models.User) -> None:
         secure=is_session_cookie_secure(),
         max_age=max_age,
     )
+    return token
 
 
 def clear_session(response: Response, db: Session, token: str | None) -> None:
@@ -86,11 +88,30 @@ def _get_user_from_token(db: Session, token: str | None) -> models.User | None:
     return session.user
 
 
+def extract_bearer_token(authorization: str | None) -> str | None:
+    """Le o token de um header 'Authorization: Bearer <token>' (usado pelo app mobile)."""
+    if not authorization:
+        return None
+    scheme, _, value = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not value.strip():
+        return None
+    return value.strip()
+
+
+def resolve_session_token(
+    session_cookie: str | None,
+    authorization: str | None,
+) -> str | None:
+    """O cookie (web) tem prioridade; senao usa o Bearer token (mobile)."""
+    return session_cookie or extract_bearer_token(authorization)
+
+
 def get_current_user(
     db: Session = Depends(get_db),
     session_token: str | None = Cookie(default=None, alias=SESSION_COOKIE_NAME),
+    authorization: str | None = Header(default=None),
 ) -> models.User | None:
-    return _get_user_from_token(db, session_token)
+    return _get_user_from_token(db, resolve_session_token(session_token, authorization))
 
 
 def require_user(current_user: models.User | None = Depends(get_current_user)) -> models.User:
@@ -166,12 +187,16 @@ def enforce_rate_limit(key: str, max_attempts: int, window_seconds: int) -> None
     _RATE_LIMIT_BUCKETS[key] = attempts
 
 
-def serialize_current_user(user: models.User) -> schemas.AuthMeResponse:
+def serialize_current_user(
+    user: models.User,
+    token: str | None = None,
+) -> schemas.AuthMeResponse:
     pelada = get_current_pelada(user)
     return schemas.AuthMeResponse(
         user=schemas.UserRead.model_validate(user),
         pelada=schemas.PeladaRead.model_validate(pelada),
         server_time=utc_now(),
+        token=token,
     )
 
 

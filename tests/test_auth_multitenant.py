@@ -6,7 +6,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
 from app import crud, models, schemas
-from app.auth import _get_user_from_token
+from app.auth import _get_user_from_token, extract_bearer_token, resolve_session_token
 from app.database import Base
 
 
@@ -82,6 +82,42 @@ class AuthMultitenantTest(unittest.TestCase):
             self.assertEqual([player.name for player in players_a], ["Jogador A", "Jogador B"])
             self.assertTrue(all(not player.is_active for player in players_a))
             self.assertTrue(players_b[0].is_active)
+        finally:
+            db.close()
+
+    def test_extract_bearer_token_parses_authorization_header(self):
+        self.assertEqual(extract_bearer_token("Bearer abc123"), "abc123")
+        self.assertEqual(extract_bearer_token("bearer abc123"), "abc123")
+        self.assertIsNone(extract_bearer_token(None))
+        self.assertIsNone(extract_bearer_token(""))
+        self.assertIsNone(extract_bearer_token("Basic abc123"))
+        self.assertIsNone(extract_bearer_token("Bearer "))
+
+    def test_resolve_session_token_prefers_cookie_then_bearer(self):
+        # Cookie (web) tem prioridade sobre o header.
+        self.assertEqual(resolve_session_token("cookie-token", "Bearer header-token"), "cookie-token")
+        # Sem cookie, usa o Bearer (mobile).
+        self.assertEqual(resolve_session_token(None, "Bearer header-token"), "header-token")
+        # Sem nada, retorna None.
+        self.assertIsNone(resolve_session_token(None, None))
+
+    def test_bearer_token_authenticates_user(self):
+        engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        Base.metadata.create_all(bind=engine)
+
+        db = SessionLocal()
+        try:
+            user = models.User(email="a@example.com", password_hash="x")
+            db.add(user)
+            db.flush()
+            db.add(models.Pelada(name="A", owner_user_id=user.id))
+            db.add(models.UserSession(user_id=user.id, token="mobile-token"))
+            db.commit()
+
+            resolved = _get_user_from_token(db, resolve_session_token(None, "Bearer mobile-token"))
+            self.assertIsNotNone(resolved)
+            self.assertEqual(resolved.email, "a@example.com")
         finally:
             db.close()
 
