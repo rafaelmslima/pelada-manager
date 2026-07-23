@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { PeladaSwitcherSheet } from '@/components/PeladaSwitcherSheet';
+import { ReminderSheet } from '@/components/ReminderSheet';
 import { Screen } from '@/components/Screen';
 import { ServerUrlField } from '@/components/ServerUrlField';
 import { Field, GhostButton, PrimaryButton, Segmented } from '@/components/form';
@@ -23,6 +24,7 @@ export default function ConfigScreen() {
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
 
   if (!session) return null;
 
@@ -83,6 +85,17 @@ export default function ConfigScreen() {
         <Ionicons name="chevron-forward" size={18} color={colors.ink4} />
       </TouchableOpacity>
 
+      <TouchableOpacity style={styles.navRow} onPress={() => router.push('/premium')} activeOpacity={0.7}>
+        <Ionicons name="star" size={22} color={colors.gold} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.navTitle}>Premium {session.user.plan === 'premium' ? '✓' : ''}</Text>
+          <Text style={styles.navSub}>
+            {session.user.plan === 'premium' ? 'Plano ativo — obrigado!' : 'Várias peladas, financeiro e mais'}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.ink4} />
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.navRow} onPress={() => router.push('/financeiro')} activeOpacity={0.7}>
         <Ionicons name="cash-outline" size={22} color={colors.ink} />
         <View style={{ flex: 1 }}>
@@ -92,7 +105,22 @@ export default function ConfigScreen() {
         <Ionicons name="chevron-forward" size={18} color={colors.ink4} />
       </TouchableOpacity>
 
+      <TouchableOpacity style={styles.navRow} onPress={() => setReminderOpen(true)} activeOpacity={0.7}>
+        <Ionicons name="alarm-outline" size={22} color={colors.ink} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.navTitle}>Lembrete da pelada</Text>
+          <Text style={styles.navSub}>Agende um alerta no seu celular</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.ink4} />
+      </TouchableOpacity>
+
       <PeladaSwitcherSheet visible={switcherOpen} onClose={() => setSwitcherOpen(false)} />
+      <ReminderSheet
+        visible={reminderOpen}
+        peladaName={session.pelada.name}
+        defaultTime={session.pelada.match_time}
+        onClose={() => setReminderOpen(false)}
+      />
 
       <View style={styles.card}>
         <Text style={styles.section}>Conta</Text>

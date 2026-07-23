@@ -25,6 +25,7 @@ def generate_teams(
         )
 
     teams, reserves = generate_balanced_teams(active_players, request.players_per_team)
+    overdue = crud.overdue_confirmed_mensalistas(db, pelada)
 
     return schemas.TeamGenerateResponse(
         players_per_team=request.players_per_team,
@@ -43,6 +44,7 @@ def generate_teams(
             for team in teams
         ],
         reserves=[_serialize_player(player) for player in reserves],
+        overdue_mensalistas=[schemas.SimplePlayer(id=p.id, name=p.name) for p in overdue],
     )
 
 

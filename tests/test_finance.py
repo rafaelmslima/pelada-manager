@@ -46,7 +46,7 @@ class FinanceTest(unittest.TestCase):
         db = _new_session()
         try:
             pelada = _make_pelada(db)
-            crud.set_daily_fee(db, pelada, 10.0)
+            crud.set_finance_settings(db, pelada, 10.0, 0, 10)
             crud.create_player(db, schemas.PlayerCreate(name="A", position="meio", rating=3, is_active=True), pelada.id)
             crud.create_player(db, schemas.PlayerCreate(name="B", position="ataque", rating=3, is_active=True), pelada.id)
             # mensalista confirmado nao paga diaria
@@ -62,6 +62,31 @@ class FinanceTest(unittest.TestCase):
             self.assertIsNotNone(entry)
             self.assertEqual(entry.amount, 20.0)  # 2 diaristas confirmados x 10
             self.assertEqual(crud.get_finance_overview(db, pelada).balance, 20.0)
+        finally:
+            db.close()
+
+    def test_overdue_confirmed_mensalistas(self):
+        db = _new_session()
+        try:
+            pelada = _make_pelada(db)
+            crud.set_finance_settings(db, pelada, daily_fee=10, monthly_fee=50, monthly_due_day=1)
+            # mensalista confirmado e nao pago -> atrasado (venc dia 1, hoje > 1 na maioria dos dias)
+            m = crud.create_player(
+                db,
+                schemas.PlayerCreate(name="M", position="meio", rating=3, is_active=True, billing_type="mensalista"),
+                pelada.id,
+            )
+            # diarista confirmado nao entra
+            crud.create_player(db, schemas.PlayerCreate(name="D", position="meio", rating=3, is_active=True), pelada.id)
+
+            import datetime as _dt
+
+            overdue = crud.overdue_confirmed_mensalistas(db, pelada)
+            if _dt.date.today().day > 1:
+                self.assertEqual([p.id for p in overdue], [m.id])
+            # pagando, sai da lista
+            crud.toggle_player_monthly_paid(db, m)
+            self.assertEqual(crud.overdue_confirmed_mensalistas(db, pelada), [])
         finally:
             db.close()
 
@@ -86,22 +111,34 @@ class FinanceTest(unittest.TestCase):
         finally:
             db.close()
 
-    def test_mensalistas_listed_with_payment_status(self):
+    def test_mensalistas_monthly_status_and_toggle(self):
         db = _new_session()
         try:
             pelada = _make_pelada(db)
-            crud.create_player(
+            mens = crud.create_player(
                 db,
-                schemas.PlayerCreate(
-                    name="Mens", position="meio", rating=3, is_active=False, billing_type="mensalista", has_paid=True
-                ),
+                schemas.PlayerCreate(name="Mens", position="meio", rating=3, is_active=False, billing_type="mensalista"),
                 pelada.id,
             )
             crud.create_player(db, schemas.PlayerCreate(name="Dia", position="meio", rating=3, is_active=False), pelada.id)
+
             overview = crud.get_finance_overview(db, pelada)
             self.assertEqual(len(overview.mensalistas), 1)
             self.assertEqual(overview.mensalistas[0].name, "Mens")
-            self.assertTrue(overview.mensalistas[0].has_paid)
+            self.assertFalse(overview.mensalistas[0].up_to_date)  # comeca pendente
+
+            # Paga a mensalidade do mes -> em dia
+            crud.toggle_player_monthly_paid(db, mens)
+            self.assertEqual(mens.paid_month, crud.current_month())
+            overview = crud.get_finance_overview(db, pelada)
+            self.assertTrue(overview.mensalistas[0].up_to_date)
+            self.assertFalse(overview.mensalistas[0].overdue)
+
+            # Virada de mes simulada: paid_month antigo -> volta a pendente automaticamente
+            mens.paid_month = "2020-01"
+            db.commit()
+            overview = crud.get_finance_overview(db, pelada)
+            self.assertFalse(overview.mensalistas[0].up_to_date)
         finally:
             db.close()
 

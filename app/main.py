@@ -12,7 +12,18 @@ from app.database import (
     ensure_legacy_multitenant_columns,
     ensure_schema_columns,
 )
-from app.routers import auth, devices, finance, matches, peladas, players, public, rankings, teams
+from app.routers import (
+    auth,
+    billing,
+    devices,
+    finance,
+    matches,
+    peladas,
+    players,
+    public,
+    rankings,
+    teams,
+)
 
 
 def initialize_database_from_env() -> None:
@@ -60,6 +71,7 @@ app.include_router(peladas.router)
 app.include_router(public.router)
 app.include_router(devices.router)
 app.include_router(finance.router)
+app.include_router(billing.router)
 
 REACT_INDEX = Path("app/static/react/index.html")
 SERVICE_WORKER = Path("app/static/service-worker.js")

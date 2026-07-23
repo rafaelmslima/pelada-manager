@@ -41,6 +41,7 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
         <Stack.Screen name="login" />
         <Stack.Screen name="live/[matchId]" />
         <Stack.Screen name="financeiro" />
+        <Stack.Screen name="premium" />
       </Stack>
       {!ready && (
         <View style={styles.loading}>

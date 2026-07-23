@@ -17,6 +17,8 @@ export default function FinanceScreen() {
 
   const [data, setData] = useState<FinanceOverview | null>(null);
   const [feeInput, setFeeInput] = useState('');
+  const [monthlyInput, setMonthlyInput] = useState('');
+  const [dueDayInput, setDueDayInput] = useState('10');
   const [entrySheet, setEntrySheet] = useState<'income' | 'expense' | null>(null);
 
   const load = useCallback(() => {
@@ -25,16 +27,23 @@ export default function FinanceScreen() {
       .then((overview) => {
         setData(overview);
         setFeeInput(overview.daily_fee ? String(overview.daily_fee) : '');
+        setMonthlyInput(overview.monthly_fee ? String(overview.monthly_fee) : '');
+        setDueDayInput(String(overview.monthly_due_day || 10));
       })
       .catch(() => {});
   }, []);
 
   useEffect(() => load(), [load]);
 
-  async function saveFee() {
-    const value = Math.max(0, Number(feeInput.replace(',', '.')) || 0);
+  async function saveSettings() {
     try {
-      setData(await api.setDailyFee(value));
+      setData(
+        await api.setFinanceSettings({
+          daily_fee: Math.max(0, Number(feeInput.replace(',', '.')) || 0),
+          monthly_fee: Math.max(0, Number(monthlyInput.replace(',', '.')) || 0),
+          monthly_due_day: Math.min(28, Math.max(1, parseInt(dueDayInput, 10) || 10)),
+        }),
+      );
     } catch {
       /* ignora */
     }
@@ -50,7 +59,7 @@ export default function FinanceScreen() {
 
   async function toggleMensalista(playerId: number) {
     try {
-      await api.togglePlayerPaid(playerId);
+      await api.togglePlayerMonthly(playerId);
       load();
     } catch {
       /* ignora */
@@ -96,22 +105,46 @@ export default function FinanceScreen() {
         </View>
       </View>
 
-      {/* Diária */}
+      {/* Valores */}
       <View style={styles.card}>
-        <Text style={styles.section}>Valor da diária</Text>
-        <View style={styles.feeRow}>
-          <TextInput
-            style={styles.feeInput}
-            value={feeInput}
-            onChangeText={setFeeInput}
-            keyboardType="decimal-pad"
-            placeholder="0,00"
-            placeholderTextColor={colors.ink4}
-          />
-          <View style={{ width: 110 }}>
-            <GhostButton label="Salvar" onPress={saveFee} />
+        <Text style={styles.section}>Valores</Text>
+        <View style={styles.valuesRow}>
+          <View style={styles.valueField}>
+            <Text style={styles.valueLabel}>Diária (R$)</Text>
+            <TextInput
+              style={styles.feeInput}
+              value={feeInput}
+              onChangeText={setFeeInput}
+              keyboardType="decimal-pad"
+              placeholder="0,00"
+              placeholderTextColor={colors.ink4}
+            />
+          </View>
+          <View style={styles.valueField}>
+            <Text style={styles.valueLabel}>Mensalidade (R$)</Text>
+            <TextInput
+              style={styles.feeInput}
+              value={monthlyInput}
+              onChangeText={setMonthlyInput}
+              keyboardType="decimal-pad"
+              placeholder="0,00"
+              placeholderTextColor={colors.ink4}
+            />
+          </View>
+          <View style={{ width: 90 }}>
+            <Text style={styles.valueLabel}>Vence dia</Text>
+            <TextInput
+              style={styles.feeInput}
+              value={dueDayInput}
+              onChangeText={setDueDayInput}
+              keyboardType="number-pad"
+              maxLength={2}
+              placeholder="10"
+              placeholderTextColor={colors.ink4}
+            />
           </View>
         </View>
+        <GhostButton label="Salvar valores" onPress={saveSettings} />
         <PrimaryButton label="Cobrar diária dos confirmados" onPress={collectDaily} />
       </View>
 
@@ -129,20 +162,26 @@ export default function FinanceScreen() {
       {data && data.mensalistas.length > 0 && (
         <View style={styles.card}>
           <Text style={styles.section}>Mensalistas</Text>
-          {data.mensalistas.map((m) => (
-            <TouchableOpacity
-              key={m.player_id}
-              style={styles.mensRow}
-              onPress={() => toggleMensalista(m.player_id)}
-              activeOpacity={0.7}>
-              <Text style={styles.mensName}>{m.name}</Text>
-              <View style={[styles.mensBadge, m.has_paid ? styles.paidBadge : styles.dueBadge]}>
-                <Text style={[styles.mensBadgeText, { color: m.has_paid ? colors.confT : colors.absT }]}>
-                  {m.has_paid ? 'Em dia' : 'Pendente'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
+          <Text style={styles.mensHint}>
+            Todo início de mês voltam para pendente. Toque para marcar o pagamento do mês.
+          </Text>
+          {data.mensalistas.map((m) => {
+            const label = m.up_to_date ? 'Em dia' : m.overdue ? 'Atrasado' : 'Pendente';
+            const color = m.up_to_date ? colors.confT : m.overdue ? colors.absT : colors.pendT;
+            const bg = m.up_to_date ? colors.confBg : m.overdue ? colors.absBg : colors.pendBg;
+            return (
+              <TouchableOpacity
+                key={m.player_id}
+                style={styles.mensRow}
+                onPress={() => toggleMensalista(m.player_id)}
+                activeOpacity={0.7}>
+                <Text style={styles.mensName}>{m.name}</Text>
+                <View style={[styles.mensBadge, { backgroundColor: bg }]}>
+                  <Text style={[styles.mensBadgeText, { color }]}>{label}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       )}
 
@@ -249,21 +288,24 @@ const styles = StyleSheet.create({
     padding: spacing.four,
     gap: spacing.three,
   },
-  section: { color: colors.ink, fontSize: 16, fontWeight: '800' },
-  feeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.three },
+  section: { color: colors.ink, fontSize: 16, fontFamily: fonts.extrabold },
+  valuesRow: { flexDirection: 'row', gap: spacing.two },
+  valueField: { flex: 1, gap: spacing.one },
+  valueLabel: { color: colors.ink3, fontSize: 11, fontFamily: fonts.bold },
   feeInput: {
-    flex: 1,
     backgroundColor: colors.page,
     borderRadius: radius.input,
     borderWidth: 1,
     borderColor: colors.border2,
-    paddingHorizontal: spacing.three,
+    paddingHorizontal: spacing.two,
     paddingVertical: spacing.three,
     color: colors.ink,
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
+    textAlign: 'center',
   },
   actionsRow: { flexDirection: 'row', gap: spacing.three },
+  mensHint: { color: colors.ink3, fontSize: 12, lineHeight: 16 },
 
   mensRow: {
     flexDirection: 'row',

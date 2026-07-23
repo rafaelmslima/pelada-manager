@@ -1,4 +1,5 @@
 import secrets
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session, selectinload
@@ -9,6 +10,37 @@ from app import models, schemas
 PRESENCE_CONFIRMED = "confirmed"
 PRESENCE_DECLINED = "declined"
 PRESENCE_PENDING = "pending"
+
+
+# Fuso de Brasilia para a logica de mensalidade (mes atual / dia de vencimento).
+# Usa a base IANA se disponivel; senao cai no offset fixo UTC-3 (Brasil sem horario de verao).
+try:
+    from zoneinfo import ZoneInfo
+
+    _BRT = ZoneInfo("America/Sao_Paulo")
+except Exception:  # noqa: BLE001 - fallback quando nao ha tzdata no ambiente
+    _BRT = timezone(timedelta(hours=-3))
+
+
+def brasilia_today() -> date:
+    return datetime.now(_BRT).date()
+
+
+def current_month() -> str:
+    return brasilia_today().strftime("%Y-%m")
+
+
+def mensalista_up_to_date(player: models.Player) -> bool:
+    return player.paid_month == current_month()
+
+
+def mensalista_overdue(player: models.Player, due_day: int) -> bool:
+    """Mensalista atrasado: nao pagou o mes atual E ja passou o dia de vencimento (fuso BRT)."""
+    if player.billing_type != "mensalista":
+        return False
+    if mensalista_up_to_date(player):
+        return False
+    return brasilia_today().day > max(1, due_day)
 
 
 def get_players(db: Session, pelada_id: int) -> list[models.Player]:
@@ -368,6 +400,145 @@ def increment_match_player_stats(
     return get_match(db, match.id, pelada_id)
 
 
+def create_round(
+    db: Session,
+    match: models.Match,
+    data: schemas.RoundCreate,
+    pelada_id: int,
+) -> None:
+    """Salva um confronto (Time A x Time B) e soma os gols/assist no total do jogador."""
+    validate_match_integrity(db, match, pelada_id)
+    team_ids = {team.id for team in match.teams}
+    if data.team_a_id not in team_ids or data.team_b_id not in team_ids:
+        raise ValueError("Times do confronto nao pertencem a esta pelada.")
+    if data.team_a_id == data.team_b_id:
+        raise ValueError("Um time nao pode jogar contra ele mesmo.")
+
+    match_players_by_player = {mp.player_id: mp for mp in match.players}
+
+    match_round = models.MatchRound(
+        pelada_id=pelada_id,
+        match_id=match.id,
+        team_a_id=data.team_a_id,
+        team_b_id=data.team_b_id,
+        goals_a=data.goals_a,
+        goals_b=data.goals_b,
+        duration_seconds=data.duration_seconds,
+    )
+    db.add(match_round)
+    db.flush()
+
+    for stat in data.stats:
+        if stat.goals <= 0 and stat.assists <= 0:
+            continue
+        db.add(
+            models.RoundPlayerStat(
+                pelada_id=pelada_id,
+                round_id=match_round.id,
+                player_id=stat.player_id,
+                goals=stat.goals,
+                assists=stat.assists,
+            )
+        )
+        match_player = match_players_by_player.get(stat.player_id)
+        if match_player is not None:
+            match_player.goals += stat.goals
+            match_player.assists += stat.assists
+
+    db.commit()
+
+
+def get_rounds_overview(db: Session, match: models.Match, pelada_id: int) -> schemas.RoundsOverview:
+    rounds = list(
+        db.scalars(
+            select(models.MatchRound)
+            .where(models.MatchRound.match_id == match.id, models.MatchRound.pelada_id == pelada_id)
+            .order_by(models.MatchRound.created_at.asc())
+        ).all()
+    )
+    teams_by_id = {team.id: team for team in match.teams}
+
+    standings: dict[int, dict] = {
+        team.id: {
+            "team_id": team.id,
+            "name": team.name,
+            "played": 0,
+            "wins": 0,
+            "draws": 0,
+            "losses": 0,
+            "goals_for": 0,
+            "goals_against": 0,
+            "points": 0,
+        }
+        for team in match.teams
+    }
+
+    round_reads: list[schemas.RoundRead] = []
+    for match_round in rounds:
+        team_a = teams_by_id.get(match_round.team_a_id)
+        team_b = teams_by_id.get(match_round.team_b_id)
+        round_reads.append(
+            schemas.RoundRead(
+                id=match_round.id,
+                team_a_id=match_round.team_a_id,
+                team_b_id=match_round.team_b_id,
+                team_a_name=team_a.name if team_a else "Time A",
+                team_b_name=team_b.name if team_b else "Time B",
+                goals_a=match_round.goals_a,
+                goals_b=match_round.goals_b,
+                duration_seconds=match_round.duration_seconds,
+            )
+        )
+        a = standings.get(match_round.team_a_id)
+        b = standings.get(match_round.team_b_id)
+        if a is None or b is None:
+            continue
+        a["played"] += 1
+        b["played"] += 1
+        a["goals_for"] += match_round.goals_a
+        a["goals_against"] += match_round.goals_b
+        b["goals_for"] += match_round.goals_b
+        b["goals_against"] += match_round.goals_a
+        if match_round.goals_a > match_round.goals_b:
+            a["wins"] += 1
+            b["losses"] += 1
+            a["points"] += 3
+        elif match_round.goals_a < match_round.goals_b:
+            b["wins"] += 1
+            a["losses"] += 1
+            b["points"] += 3
+        else:
+            a["draws"] += 1
+            b["draws"] += 1
+            a["points"] += 1
+            b["points"] += 1
+
+    table = [
+        schemas.TeamStanding(**row)
+        for row in sorted(
+            standings.values(),
+            key=lambda r: (r["points"], r["goals_for"] - r["goals_against"], r["goals_for"]),
+            reverse=True,
+        )
+    ]
+
+    # Artilheiro do dia (agregado do MatchPlayer desta pelada).
+    top_scorer = None
+    best = None
+    for match_player in match.players:
+        if match_player.goals > 0 and (best is None or match_player.goals > best.goals):
+            best = match_player
+    if best is not None:
+        top_scorer = schemas.TopScorer(
+            player_id=best.player_id, name=best.player.name, goals=best.goals
+        )
+
+    champion = table[0] if table and table[0].played > 0 else None
+    return schemas.RoundsOverview(
+        rounds=round_reads, standings=table, top_scorer=top_scorer, champion=champion
+    )
+
+
 def get_match_ratings(db: Session, match_id: int, pelada_id: int) -> dict[int, float]:
     rows = db.execute(
         select(models.PlayerRating.player_id, models.PlayerRating.score).where(
@@ -510,11 +681,19 @@ def get_finance_overview(db: Session, pelada: models.Pelada) -> schemas.FinanceO
     mensalistas = [p for p in get_players(db, pelada.id) if p.billing_type == "mensalista"]
     return schemas.FinanceOverview(
         daily_fee=pelada.daily_fee,
+        monthly_fee=pelada.monthly_fee,
+        monthly_due_day=pelada.monthly_due_day,
         total_income=round(income, 2),
         total_expense=round(expense, 2),
         balance=round(income - expense, 2),
         mensalistas=[
-            schemas.MensalistaStatus(player_id=p.id, name=p.name, has_paid=p.has_paid) for p in mensalistas
+            schemas.MensalistaStatus(
+                player_id=p.id,
+                name=p.name,
+                up_to_date=mensalista_up_to_date(p),
+                overdue=mensalista_overdue(p, pelada.monthly_due_day),
+            )
+            for p in mensalistas
         ],
         entries=[_finance_entry_read(e) for e in entries],
     )
@@ -549,9 +728,30 @@ def delete_finance_entry(db: Session, entry: models.FinanceEntry) -> None:
     db.commit()
 
 
-def set_daily_fee(db: Session, pelada: models.Pelada, daily_fee: float) -> None:
+def set_finance_settings(
+    db: Session, pelada: models.Pelada, daily_fee: float, monthly_fee: float, monthly_due_day: int
+) -> None:
     pelada.daily_fee = max(0.0, daily_fee)
+    pelada.monthly_fee = max(0.0, monthly_fee)
+    pelada.monthly_due_day = min(28, max(1, monthly_due_day))
     db.commit()
+
+
+def toggle_player_monthly_paid(db: Session, player: models.Player) -> models.Player:
+    """Marca/desmarca a mensalidade do mes atual (reseta sozinho na virada do mes)."""
+    player.paid_month = None if mensalista_up_to_date(player) else current_month()
+    db.commit()
+    db.refresh(player)
+    return player
+
+
+def overdue_confirmed_mensalistas(db: Session, pelada: models.Pelada) -> list[models.Player]:
+    """Mensalistas confirmados (no sorteio) que estao com a mensalidade atrasada."""
+    return [
+        p
+        for p in get_active_players(db, pelada.id)
+        if mensalista_overdue(p, pelada.monthly_due_day)
+    ]
 
 
 def collect_daily_from_confirmed(db: Session, pelada: models.Pelada) -> models.FinanceEntry | None:

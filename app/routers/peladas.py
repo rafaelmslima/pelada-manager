@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app import crud, models, schemas
+from app import billing, crud, models, schemas
 from app.auth import get_current_pelada, require_user, serialize_current_user
 from app.database import get_db
 
@@ -38,6 +38,7 @@ def create_pelada(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(require_user),
 ):
+    billing.require_pelada_quota(current_user)
     crud.create_pelada_for_user(db, current_user, payload.name, payload.location, payload.match_time)
     return serialize_current_user(current_user)
 

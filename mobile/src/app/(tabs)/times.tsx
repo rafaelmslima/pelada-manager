@@ -32,6 +32,7 @@ export default function TimesScreen() {
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [moving, setMoving] = useState<{ player: TeamPlayer; fromIndex: number } | null>(null);
+  const [overdue, setOverdue] = useState<{ id: number; name: string }[]>([]);
 
   const router = useRouter();
   const [matches, setMatches] = useState<MatchListItem[]>([]);
@@ -52,6 +53,14 @@ export default function TimesScreen() {
     try {
       const resp = await api.generateTeams(value);
       setTeams(resp.teams);
+      setOverdue(resp.overdue_mensalistas);
+      if (resp.overdue_mensalistas.length > 0) {
+        const nomes = resp.overdue_mensalistas.map((m) => m.name).join(', ');
+        Alert.alert(
+          'Mensalidade atrasada',
+          `${resp.overdue_mensalistas.length} mensalista(s) confirmado(s) estão com a mensalidade atrasada:\n\n${nomes}\n\nVocê decide se segue com o sorteio.`,
+        );
+      }
     } catch (err) {
       Alert.alert('Não foi possível gerar', err instanceof ApiError ? err.message : 'Erro.');
     } finally {
@@ -144,6 +153,16 @@ export default function TimesScreen() {
           <GhostButton label="Gerar novamente" onPress={generate} />
         )}
       </View>
+
+      {/* Aviso de mensalistas atrasados no sorteio */}
+      {teams && overdue.length > 0 && (
+        <View style={styles.overdueBanner}>
+          <Ionicons name="warning" size={18} color={colors.absT} />
+          <Text style={styles.overdueText}>
+            {overdue.length} mensalista(s) atrasado(s) no sorteio: {overdue.map((m) => m.name).join(', ')}
+          </Text>
+        </View>
+      )}
 
       {/* Resultado */}
       {teams &&
@@ -273,6 +292,17 @@ const styles = StyleSheet.create({
   title: { color: colors.ink, fontSize: 28, fontFamily: fonts.extrabold },
   section: { color: colors.ink, fontSize: 18, fontFamily: fonts.extrabold },
   sectionHint: { color: colors.ink3, fontSize: 13, lineHeight: 18 },
+  overdueBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.two,
+    backgroundColor: colors.absBg,
+    borderRadius: radius.cardSm,
+    borderWidth: 1,
+    borderColor: colors.abs,
+    padding: spacing.three,
+  },
+  overdueText: { flex: 1, color: colors.absT, fontSize: 13, fontFamily: fonts.semibold },
 
   generatorCard: {
     backgroundColor: colors.surface,

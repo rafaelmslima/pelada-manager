@@ -31,17 +31,21 @@ def ensure_legacy_multitenant_columns(target_engine: Engine = engine) -> None:
 
     # Mapa coluna -> DDL para cada tabela (usado apenas em SQLite legado).
     required_by_table = {
-        "users": {"active_pelada_id": "INTEGER"},
+        "users": {"active_pelada_id": "INTEGER", "plan": "TEXT NOT NULL DEFAULT 'free'"},
         "peladas": {
             "location": "TEXT NOT NULL DEFAULT ''",
             "match_time": "TEXT NOT NULL DEFAULT '20:00'",
             "default_billing_type": "TEXT NOT NULL DEFAULT 'diarista'",
             "public_token": "TEXT",
             "invite_code": "TEXT",
+            "daily_fee": "REAL NOT NULL DEFAULT 0",
+            "monthly_fee": "REAL NOT NULL DEFAULT 0",
+            "monthly_due_day": "INTEGER NOT NULL DEFAULT 10",
         },
         "players": {
             "pelada_id": "INTEGER",
             "presence": "TEXT NOT NULL DEFAULT 'pending'",
+            "paid_month": "TEXT",
         },
         "matches": {"pelada_id": "INTEGER"},
         "match_teams": {"pelada_id": "INTEGER"},
@@ -70,6 +74,9 @@ _POSTGRES_ENSURE_STATEMENTS = [
     "ALTER TABLE peladas ADD COLUMN IF NOT EXISTS match_time VARCHAR(20) NOT NULL DEFAULT '20:00'",
     "ALTER TABLE peladas ADD COLUMN IF NOT EXISTS default_billing_type VARCHAR(20) NOT NULL DEFAULT 'diarista'",
     "ALTER TABLE peladas ADD COLUMN IF NOT EXISTS daily_fee DOUBLE PRECISION NOT NULL DEFAULT 0",
+    "ALTER TABLE peladas ADD COLUMN IF NOT EXISTS monthly_fee DOUBLE PRECISION NOT NULL DEFAULT 0",
+    "ALTER TABLE peladas ADD COLUMN IF NOT EXISTS monthly_due_day INTEGER NOT NULL DEFAULT 10",
+    "ALTER TABLE players ADD COLUMN IF NOT EXISTS paid_month VARCHAR(7)",
     "ALTER TABLE peladas ADD COLUMN IF NOT EXISTS public_token VARCHAR(64)",
     "CREATE UNIQUE INDEX IF NOT EXISTS ix_peladas_public_token ON peladas (public_token)",
     "ALTER TABLE players ADD COLUMN IF NOT EXISTS presence VARCHAR(20) NOT NULL DEFAULT 'pending'",
@@ -108,6 +115,8 @@ _POSTGRES_ENSURE_STATEMENTS = [
         ")"
     ),
     "CREATE INDEX IF NOT EXISTS ix_finance_entries_pelada_id ON finance_entries (pelada_id)",
+    # Freemium
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS plan VARCHAR(20) NOT NULL DEFAULT 'free'",
     # Multi-pelada
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS active_pelada_id INTEGER",
     "ALTER TABLE peladas ADD COLUMN IF NOT EXISTS invite_code VARCHAR(20)",
@@ -136,6 +145,32 @@ _POSTGRES_ENSURE_STATEMENTS = [
         " (SELECT p.id FROM peladas p WHERE p.owner_user_id = users.id ORDER BY p.id LIMIT 1)"
         " WHERE active_pelada_id IS NULL"
     ),
+    # Confrontos ao vivo (rodizio)
+    (
+        "CREATE TABLE IF NOT EXISTS match_rounds ("
+        " id SERIAL PRIMARY KEY,"
+        " pelada_id INTEGER NOT NULL REFERENCES peladas(id),"
+        " match_id INTEGER NOT NULL REFERENCES matches(id),"
+        " team_a_id INTEGER NOT NULL REFERENCES match_teams(id),"
+        " team_b_id INTEGER NOT NULL REFERENCES match_teams(id),"
+        " goals_a INTEGER NOT NULL DEFAULT 0,"
+        " goals_b INTEGER NOT NULL DEFAULT 0,"
+        " duration_seconds INTEGER NOT NULL DEFAULT 0,"
+        " created_at TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc')"
+        ")"
+    ),
+    "CREATE INDEX IF NOT EXISTS ix_match_rounds_match_id ON match_rounds (match_id)",
+    (
+        "CREATE TABLE IF NOT EXISTS round_player_stats ("
+        " id SERIAL PRIMARY KEY,"
+        " pelada_id INTEGER NOT NULL REFERENCES peladas(id),"
+        " round_id INTEGER NOT NULL REFERENCES match_rounds(id),"
+        " player_id INTEGER NOT NULL REFERENCES players(id),"
+        " goals INTEGER NOT NULL DEFAULT 0,"
+        " assists INTEGER NOT NULL DEFAULT 0"
+        ")"
+    ),
+    "CREATE INDEX IF NOT EXISTS ix_round_player_stats_round_id ON round_player_stats (round_id)",
 ]
 
 _SQLITE_ENSURE_STATEMENTS = [
@@ -178,6 +213,29 @@ _SQLITE_ENSURE_STATEMENTS = [
         " role VARCHAR(20) NOT NULL DEFAULT 'member',"
         " created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,"
         " UNIQUE (user_id, pelada_id)"
+        ")"
+    ),
+    (
+        "CREATE TABLE IF NOT EXISTS match_rounds ("
+        " id INTEGER PRIMARY KEY,"
+        " pelada_id INTEGER NOT NULL,"
+        " match_id INTEGER NOT NULL,"
+        " team_a_id INTEGER NOT NULL,"
+        " team_b_id INTEGER NOT NULL,"
+        " goals_a INTEGER NOT NULL DEFAULT 0,"
+        " goals_b INTEGER NOT NULL DEFAULT 0,"
+        " duration_seconds INTEGER NOT NULL DEFAULT 0,"
+        " created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
+        ")"
+    ),
+    (
+        "CREATE TABLE IF NOT EXISTS round_player_stats ("
+        " id INTEGER PRIMARY KEY,"
+        " pelada_id INTEGER NOT NULL,"
+        " round_id INTEGER NOT NULL,"
+        " player_id INTEGER NOT NULL,"
+        " goals INTEGER NOT NULL DEFAULT 0,"
+        " assists INTEGER NOT NULL DEFAULT 0"
         ")"
     ),
 ]

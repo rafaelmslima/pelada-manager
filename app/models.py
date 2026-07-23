@@ -18,6 +18,8 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Plano do usuario: "free" | "premium".
+    plan: Mapped[str] = mapped_column(String(20), default="free", nullable=False)
     # Pelada atualmente selecionada (multi-pelada). Sem FK para evitar ciclo users<->peladas.
     active_pelada_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, nullable=False)
@@ -89,6 +91,9 @@ class Pelada(Base):
     default_billing_type: Mapped[str] = mapped_column(String(20), default="diarista", nullable=False)
     # Valor da diaria (cobranca por pelada). 0 = nao configurado.
     daily_fee: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    # Mensalidade e dia de vencimento (1-28).
+    monthly_fee: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    monthly_due_day: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
     # Token do link publico de confirmacao de presenca (gerado sob demanda).
     public_token: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True, index=True)
     # Codigo de convite para outros usuarios entrarem na pelada.
@@ -119,6 +124,8 @@ class Player(Base):
     presence: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
     billing_type: Mapped[str] = mapped_column(String(20), default="diarista", nullable=False)
     has_paid: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Mes ("YYYY-MM") pelo qual o mensalista esta pago. None/mes diferente = pendente.
+    paid_month: Mapped[str | None] = mapped_column(String(7), nullable=True)
     whatsapp: Mapped[str] = mapped_column(String(30), default="", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, nullable=False)
 
@@ -194,6 +201,41 @@ class FinanceEntry(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, nullable=False)
 
     player: Mapped["Player | None"] = relationship()
+
+
+class MatchRound(Base):
+    """Um confronto (Time A x Time B) dentro de uma pelada — rodizio de times."""
+
+    __tablename__ = "match_rounds"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    pelada_id: Mapped[int] = mapped_column(ForeignKey("peladas.id"), nullable=False, index=True)
+    match_id: Mapped[int] = mapped_column(ForeignKey("matches.id"), nullable=False, index=True)
+    team_a_id: Mapped[int] = mapped_column(ForeignKey("match_teams.id"), nullable=False)
+    team_b_id: Mapped[int] = mapped_column(ForeignKey("match_teams.id"), nullable=False)
+    goals_a: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    goals_b: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    duration_seconds: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, nullable=False)
+
+    stats: Mapped[list["RoundPlayerStat"]] = relationship(
+        back_populates="round", cascade="all, delete-orphan"
+    )
+
+
+class RoundPlayerStat(Base):
+    """Gols/assistencias de um jogador num confronto especifico."""
+
+    __tablename__ = "round_player_stats"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    pelada_id: Mapped[int] = mapped_column(ForeignKey("peladas.id"), nullable=False, index=True)
+    round_id: Mapped[int] = mapped_column(ForeignKey("match_rounds.id"), nullable=False, index=True)
+    player_id: Mapped[int] = mapped_column(ForeignKey("players.id"), nullable=False, index=True)
+    goals: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    assists: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    round: Mapped["MatchRound"] = relationship(back_populates="stats")
 
 
 class PlayerRating(Base):

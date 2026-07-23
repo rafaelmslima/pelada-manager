@@ -51,6 +51,7 @@ class UserRead(BaseModel):
 
     id: int
     email: str
+    plan: str = "free"
     created_at: datetime
 
 
@@ -175,12 +176,19 @@ class TeamResult(BaseModel):
     players: list[TeamPlayer]
 
 
+class SimplePlayer(BaseModel):
+    id: int
+    name: str
+
+
 class TeamGenerateResponse(BaseModel):
     players_per_team: int
     selected_count: int
     team_count: int
     teams: list[TeamResult]
     reserves: list[TeamPlayer]
+    # Mensalistas confirmados com a mensalidade atrasada (aviso no sorteio).
+    overdue_mensalistas: list[SimplePlayer] = Field(default_factory=list)
 
 
 class MatchPlayerCreate(BaseModel):
@@ -247,6 +255,60 @@ class MatchRatingsUpdate(BaseModel):
 class MatchRatingRead(BaseModel):
     player_id: int
     score: float
+
+
+# --- Confrontos ao vivo (rodizio) ---
+
+
+class RoundPlayerStatInput(BaseModel):
+    player_id: int
+    goals: int = Field(default=0, ge=0, le=50)
+    assists: int = Field(default=0, ge=0, le=50)
+
+
+class RoundCreate(BaseModel):
+    team_a_id: int
+    team_b_id: int
+    goals_a: int = Field(default=0, ge=0, le=99)
+    goals_b: int = Field(default=0, ge=0, le=99)
+    duration_seconds: int = Field(default=0, ge=0, le=36000)
+    stats: list[RoundPlayerStatInput] = Field(default_factory=list)
+
+
+class RoundRead(BaseModel):
+    id: int
+    team_a_id: int
+    team_b_id: int
+    team_a_name: str
+    team_b_name: str
+    goals_a: int
+    goals_b: int
+    duration_seconds: int
+
+
+class TeamStanding(BaseModel):
+    team_id: int
+    name: str
+    played: int
+    wins: int
+    draws: int
+    losses: int
+    goals_for: int
+    goals_against: int
+    points: int
+
+
+class TopScorer(BaseModel):
+    player_id: int
+    name: str
+    goals: int
+
+
+class RoundsOverview(BaseModel):
+    rounds: list[RoundRead]
+    standings: list[TeamStanding]
+    top_scorer: TopScorer | None = None
+    champion: TeamStanding | None = None
 
 
 class MatchPlayerRead(BaseModel):
@@ -380,6 +442,22 @@ class OkResponse(BaseModel):
     ok: bool
 
 
+# --- Billing / freemium ---
+
+
+class PlanActivateRequest(BaseModel):
+    code: str = Field(..., min_length=1, max_length=64)
+
+
+class BillingStatus(BaseModel):
+    plan: str
+    is_premium: bool
+    max_peladas: int | None
+    max_players: int | None
+    peladas_count: int
+    players_count: int
+
+
 # --- Financeiro ---
 
 FinanceKind = Literal["income", "expense"]
@@ -387,6 +465,8 @@ FinanceKind = Literal["income", "expense"]
 
 class FinanceSettingsUpdate(BaseModel):
     daily_fee: float = Field(..., ge=0, le=100000)
+    monthly_fee: float = Field(default=0, ge=0, le=100000)
+    monthly_due_day: int = Field(default=10, ge=1, le=28)
 
 
 class FinanceEntryCreate(BaseModel):
@@ -414,11 +494,14 @@ class FinanceEntryRead(BaseModel):
 class MensalistaStatus(BaseModel):
     player_id: int
     name: str
-    has_paid: bool
+    up_to_date: bool
+    overdue: bool
 
 
 class FinanceOverview(BaseModel):
     daily_fee: float
+    monthly_fee: float
+    monthly_due_day: int
     total_income: float
     total_expense: float
     balance: float

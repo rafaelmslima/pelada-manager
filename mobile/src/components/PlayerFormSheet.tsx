@@ -1,5 +1,6 @@
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { Alert, StyleSheet, Text } from 'react-native';
 
 import { Sheet } from '@/components/Sheet';
 import { Field, PrimaryButton, Segmented, SwitchRow } from '@/components/form';
@@ -30,6 +31,7 @@ export function PlayerFormSheet({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const router = useRouter();
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -83,6 +85,14 @@ export function PlayerFormSheet({
       onSaved();
       onClose();
     } catch (err) {
+      if (err instanceof ApiError && err.status === 402) {
+        onClose();
+        Alert.alert('Limite do plano grátis', err.message, [
+          { text: 'Agora não', style: 'cancel' },
+          { text: 'Ver Premium', onPress: () => router.push('/premium') },
+        ]);
+        return;
+      }
       setError(err instanceof ApiError ? err.message : 'Não foi possível salvar.');
     } finally {
       setSaving(false);

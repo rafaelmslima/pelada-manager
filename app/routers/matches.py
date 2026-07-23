@@ -83,6 +83,39 @@ def register_match_event(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
 
+@router.get("/{match_id}/rounds", response_model=schemas.RoundsOverview)
+def get_rounds(
+    match_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_user),
+):
+    pelada = get_current_pelada(current_user)
+    match = crud.get_match(db, match_id, pelada.id)
+    if match is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pelada nao encontrada.")
+    return crud.get_rounds_overview(db, match, pelada.id)
+
+
+@router.post("/{match_id}/rounds", response_model=schemas.RoundsOverview, status_code=status.HTTP_201_CREATED)
+def create_round(
+    match_id: int,
+    payload: schemas.RoundCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_user),
+):
+    """Salva um confronto (Time A x Time B) da pelada ao vivo."""
+    pelada = get_current_pelada(current_user)
+    match = crud.get_match(db, match_id, pelada.id)
+    if match is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pelada nao encontrada.")
+    try:
+        crud.create_round(db, match, payload, pelada.id)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+    match = crud.get_match(db, match_id, pelada.id)
+    return crud.get_rounds_overview(db, match, pelada.id)
+
+
 @router.get("/{match_id}/ratings", response_model=list[schemas.MatchRatingRead])
 def get_match_ratings(
     match_id: int,

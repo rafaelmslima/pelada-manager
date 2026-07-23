@@ -2,12 +2,15 @@ import { getApiBaseUrl } from './config';
 import { getToken } from './storage';
 import type {
   AuthMe,
+  BillingStatus,
   ConfirmationLink,
   FinanceOverview,
   MatchListItem,
   MatchRating,
   MatchRead,
   Pelada,
+  RoundCreatePayload,
+  RoundsOverview,
   PeladaMembership,
   Player,
   PlayerPayload,
@@ -91,6 +94,10 @@ export const api = {
     request<AuthMe>('/api/peladas/join', { method: 'POST', json: { invite_code } }),
   getInviteCode: () => request<{ invite_code: string }>('/api/peladas/invite-code'),
 
+  billingStatus: () => request<BillingStatus>('/api/billing/status'),
+  activatePremium: (code: string) =>
+    request<AuthMe>('/api/billing/activate', { method: 'POST', json: { code } }),
+
   listPlayers: () => request<Player[]>('/api/players'),
   createPlayer: (payload: PlayerPayload) => request<Player>('/api/players', { method: 'POST', json: payload }),
   updatePlayer: (id: number, payload: PlayerPayload) =>
@@ -98,6 +105,7 @@ export const api = {
   deletePlayer: (id: number) => request<void>(`/api/players/${id}`, { method: 'DELETE' }),
   togglePlayer: (id: number) => request<Player>(`/api/players/${id}/toggle-active`, { method: 'PATCH' }),
   togglePlayerPaid: (id: number) => request<Player>(`/api/players/${id}/toggle-paid`, { method: 'PATCH' }),
+  togglePlayerMonthly: (id: number) => request<Player>(`/api/players/${id}/toggle-monthly`, { method: 'PATCH' }),
   deactivateAllPlayers: () => request<Player[]>('/api/players/deactivate-all', { method: 'PATCH' }),
   playerProfile: (id: number) => request<PlayerProfile>(`/api/players/${id}/profile`),
 
@@ -115,6 +123,9 @@ export const api = {
       method: 'POST',
       json: { goals_delta, assists_delta },
     }),
+  getRounds: (matchId: number) => request<RoundsOverview>(`/api/matches/${matchId}/rounds`),
+  createRound: (matchId: number, payload: RoundCreatePayload) =>
+    request<RoundsOverview>(`/api/matches/${matchId}/rounds`, { method: 'POST', json: payload }),
   getMatchRatings: (matchId: number) => request<MatchRating[]>(`/api/matches/${matchId}/ratings`),
   saveMatchRatings: (matchId: number, ratings: MatchRating[]) =>
     request<MatchRead>(`/api/matches/${matchId}/ratings`, { method: 'POST', json: { ratings } }),
@@ -131,8 +142,8 @@ export const api = {
     request<{ ok: boolean }>('/api/devices', { method: 'DELETE', json: { token } }),
 
   getFinance: () => request<FinanceOverview>('/api/finance'),
-  setDailyFee: (daily_fee: number) =>
-    request<FinanceOverview>('/api/finance/settings', { method: 'PUT', json: { daily_fee } }),
+  setFinanceSettings: (settings: { daily_fee: number; monthly_fee: number; monthly_due_day: number }) =>
+    request<FinanceOverview>('/api/finance/settings', { method: 'PUT', json: settings }),
   addFinanceEntry: (entry: {
     kind: 'income' | 'expense';
     amount: number;

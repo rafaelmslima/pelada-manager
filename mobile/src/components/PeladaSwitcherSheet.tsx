@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { Sheet } from '@/components/Sheet';
 import { Field, GhostButton, PrimaryButton } from '@/components/form';
@@ -13,6 +14,7 @@ type Mode = 'list' | 'create' | 'join';
 
 export function PeladaSwitcherSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { applyAuth } = useAuth();
+  const router = useRouter();
   const [peladas, setPeladas] = useState<PeladaMembership[]>([]);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>('list');
@@ -44,6 +46,12 @@ export function PeladaSwitcherSheet({ visible, onClose }: { visible: boolean; on
       applyAuth(me as Parameters<typeof applyAuth>[0]);
       onClose();
     } catch (err) {
+      // 402 = limite do plano gratuito -> leva para a tela Premium.
+      if (err instanceof ApiError && err.status === 402) {
+        onClose();
+        router.push('/premium');
+        return;
+      }
       setError(err instanceof ApiError ? err.message : 'Não foi possível concluir.');
     } finally {
       setBusy(false);

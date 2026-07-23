@@ -25,7 +25,7 @@ def update_settings(
     current_user: models.User = Depends(require_user),
 ):
     pelada = get_current_pelada(current_user)
-    crud.set_daily_fee(db, pelada, payload.daily_fee)
+    crud.set_finance_settings(db, pelada, payload.daily_fee, payload.monthly_fee, payload.monthly_due_day)
     return crud.get_finance_overview(db, pelada)
 
 

@@ -8,7 +8,17 @@ export type PresenceStatus = 'pending' | 'confirmed' | 'declined';
 export type User = {
   id: number;
   email: string;
+  plan: string;
   created_at: string;
+};
+
+export type BillingStatus = {
+  plan: string;
+  is_premium: boolean;
+  max_peladas: number | null;
+  max_players: number | null;
+  peladas_count: number;
+  players_count: number;
 };
 
 export type Pelada = {
@@ -34,11 +44,14 @@ export type FinanceEntry = {
 export type MensalistaStatus = {
   player_id: number;
   name: string;
-  has_paid: boolean;
+  up_to_date: boolean;
+  overdue: boolean;
 };
 
 export type FinanceOverview = {
   daily_fee: number;
+  monthly_fee: number;
+  monthly_due_day: number;
   total_income: number;
   total_expense: number;
   balance: number;
@@ -86,6 +99,47 @@ export type MatchRating = {
   score: number;
 };
 
+export type MatchRound = {
+  id: number;
+  team_a_id: number;
+  team_b_id: number;
+  team_a_name: string;
+  team_b_name: string;
+  goals_a: number;
+  goals_b: number;
+  duration_seconds: number;
+};
+
+export type TeamStanding = {
+  team_id: number;
+  name: string;
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goals_for: number;
+  goals_against: number;
+  points: number;
+};
+
+export type TopScorer = { player_id: number; name: string; goals: number };
+
+export type RoundsOverview = {
+  rounds: MatchRound[];
+  standings: TeamStanding[];
+  top_scorer: TopScorer | null;
+  champion: TeamStanding | null;
+};
+
+export type RoundCreatePayload = {
+  team_a_id: number;
+  team_b_id: number;
+  goals_a: number;
+  goals_b: number;
+  duration_seconds: number;
+  stats: { player_id: number; goals: number; assists: number }[];
+};
+
 export type PlayerPayload = {
   name: string;
   position: Position;
@@ -119,6 +173,7 @@ export type TeamGenerateResponse = {
   team_count: number;
   teams: TeamResult[];
   reserves: TeamPlayer[];
+  overdue_mensalistas: { id: number; name: string }[];
 };
 
 export type MatchListItem = {

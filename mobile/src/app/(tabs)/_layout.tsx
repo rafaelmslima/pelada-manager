@@ -1,15 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/lib/auth';
 import { colors, fonts } from '@/theme';
 
 export default function TabsLayout() {
   const { session } = useAuth();
+  const insets = useSafeAreaInsets();
 
   // Enquanto a sessão não resolve, evita renderizar as tabs (o redirect
   // para /login acontece no AuthProvider).
   if (!session) return null;
+
+  // Garante espaço para a barra de navegação do sistema (evita a tab bar ficar
+  // atrás dos botões do Android, o que impedia o toque nas abas).
+  const bottomInset = insets.bottom;
 
   return (
     <Tabs
@@ -20,8 +26,8 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          height: 62,
-          paddingBottom: 8,
+          height: 58 + bottomInset,
+          paddingBottom: bottomInset + 6,
           paddingTop: 6,
         },
         tabBarLabelStyle: { fontSize: 11, fontFamily: fonts.semibold },
