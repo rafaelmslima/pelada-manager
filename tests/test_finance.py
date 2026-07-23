@@ -85,7 +85,7 @@ class FinanceTest(unittest.TestCase):
             if _dt.date.today().day > 1:
                 self.assertEqual([p.id for p in overdue], [m.id])
             # pagando, sai da lista
-            crud.toggle_player_monthly_paid(db, m)
+            crud.toggle_player_monthly_paid(db, pelada, m)
             self.assertEqual(crud.overdue_confirmed_mensalistas(db, pelada), [])
         finally:
             db.close()
@@ -128,7 +128,7 @@ class FinanceTest(unittest.TestCase):
             self.assertFalse(overview.mensalistas[0].up_to_date)  # comeca pendente
 
             # Paga a mensalidade do mes -> em dia
-            crud.toggle_player_monthly_paid(db, mens)
+            crud.toggle_player_monthly_paid(db, pelada, mens)
             self.assertEqual(mens.paid_month, crud.current_month())
             overview = crud.get_finance_overview(db, pelada)
             self.assertTrue(overview.mensalistas[0].up_to_date)
@@ -139,6 +139,77 @@ class FinanceTest(unittest.TestCase):
             db.commit()
             overview = crud.get_finance_overview(db, pelada)
             self.assertFalse(overview.mensalistas[0].up_to_date)
+        finally:
+            db.close()
+
+    def test_monthly_toggle_updates_caixa(self):
+        db = _new_session()
+        try:
+            pelada = _make_pelada(db)
+            crud.set_finance_settings(db, pelada, daily_fee=0, monthly_fee=80, monthly_due_day=10)
+            mens = crud.create_player(
+                db,
+                schemas.PlayerCreate(name="Mens", position="meio", rating=3, is_active=True, billing_type="mensalista"),
+                pelada.id,
+            )
+            # Marca pago -> caixa recebe a mensalidade automaticamente
+            crud.toggle_player_monthly_paid(db, pelada, mens)
+            self.assertEqual(crud.get_finance_overview(db, pelada).balance, 80.0)
+            # Desmarca -> estorna
+            crud.toggle_player_monthly_paid(db, pelada, mens)
+            self.assertEqual(crud.get_finance_overview(db, pelada).balance, 0.0)
+            self.assertIsNone(mens.paid_month)
+        finally:
+            db.close()
+
+    def test_daily_toggle_updates_caixa_and_list(self):
+        db = _new_session()
+        try:
+            pelada = _make_pelada(db)
+            crud.set_finance_settings(db, pelada, daily_fee=15, monthly_fee=0, monthly_due_day=10)
+            dia = crud.create_player(
+                db, schemas.PlayerCreate(name="Dia", position="meio", rating=3, is_active=True), pelada.id
+            )
+            # diarista nao confirmado nao aparece na lista de cobranca do dia
+            crud.create_player(
+                db, schemas.PlayerCreate(name="Fora", position="meio", rating=3, is_active=False), pelada.id
+            )
+
+            overview = crud.get_finance_overview(db, pelada)
+            self.assertEqual([d.name for d in overview.diaristas], ["Dia"])
+            self.assertFalse(overview.diaristas[0].paid)
+
+            # Marca a diaria como paga -> caixa recebe a diaria
+            crud.toggle_player_daily_paid(db, pelada, dia)
+            self.assertEqual(dia.paid_date, crud.today_iso())
+            overview = crud.get_finance_overview(db, pelada)
+            self.assertTrue(overview.diaristas[0].paid)
+            self.assertEqual(overview.balance, 15.0)
+
+            # Desmarca -> estorna
+            crud.toggle_player_daily_paid(db, pelada, dia)
+            self.assertIsNone(dia.paid_date)
+            self.assertEqual(crud.get_finance_overview(db, pelada).balance, 0.0)
+        finally:
+            db.close()
+
+    def test_delete_auto_entry_reverts_payment(self):
+        db = _new_session()
+        try:
+            pelada = _make_pelada(db)
+            crud.set_finance_settings(db, pelada, daily_fee=0, monthly_fee=60, monthly_due_day=10)
+            mens = crud.create_player(
+                db,
+                schemas.PlayerCreate(name="Mens", position="meio", rating=3, is_active=True, billing_type="mensalista"),
+                pelada.id,
+            )
+            crud.toggle_player_monthly_paid(db, pelada, mens)
+            overview = crud.get_finance_overview(db, pelada)
+            self.assertEqual(len(overview.entries), 1)
+            # Excluir o lancamento da mensalidade deve devolver o jogador para pendente
+            crud.delete_finance_entry(db, crud.get_finance_entry(db, overview.entries[0].id, pelada.id))
+            self.assertIsNone(mens.paid_month)
+            self.assertFalse(crud.get_finance_overview(db, pelada).mensalistas[0].up_to_date)
         finally:
             db.close()
 

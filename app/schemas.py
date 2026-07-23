@@ -64,6 +64,8 @@ class PeladaRead(BaseModel):
     match_time: str
     default_billing_type: BillingType
     daily_fee: float = 0
+    monthly_fee: float = 0
+    monthly_due_day: int = 10
     created_at: datetime
 
 
@@ -72,6 +74,9 @@ class PeladaUpdate(BaseModel):
     location: str = Field(default="", max_length=160)
     match_time: str = Field(default="20:00", pattern=r"^\d{2}:\d{2}$")
     default_billing_type: BillingType = "diarista"
+    daily_fee: float = Field(default=0, ge=0, le=100000)
+    monthly_fee: float = Field(default=0, ge=0, le=100000)
+    monthly_due_day: int = Field(default=10, ge=1, le=28)
 
     @field_validator("name", "location", "match_time")
     @classmethod
@@ -498,6 +503,12 @@ class MensalistaStatus(BaseModel):
     overdue: bool
 
 
+class DiaristaStatus(BaseModel):
+    player_id: int
+    name: str
+    paid: bool
+
+
 class FinanceOverview(BaseModel):
     daily_fee: float
     monthly_fee: float
@@ -506,4 +517,5 @@ class FinanceOverview(BaseModel):
     total_expense: float
     balance: float
     mensalistas: list[MensalistaStatus]
+    diaristas: list[DiaristaStatus]
     entries: list[FinanceEntryRead]

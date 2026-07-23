@@ -83,8 +83,12 @@ export const api = {
   register: (payload: { name: string; email: string; password: string; pelada_name: string | null }) =>
     request<AuthMe>('/api/auth/register', { method: 'POST', json: payload }),
   logout: () => request<{ ok: boolean }>('/api/auth/logout', { method: 'POST' }),
-  updatePelada: (payload: Pick<Pelada, 'name' | 'location' | 'match_time' | 'default_billing_type'>) =>
-    request<AuthMe>('/api/auth/pelada', { method: 'PUT', json: payload }),
+  updatePelada: (
+    payload: Pick<
+      Pelada,
+      'name' | 'location' | 'match_time' | 'default_billing_type' | 'daily_fee' | 'monthly_fee' | 'monthly_due_day'
+    >,
+  ) => request<AuthMe>('/api/auth/pelada', { method: 'PUT', json: payload }),
 
   listPeladas: () => request<PeladaMembership[]>('/api/peladas'),
   createPelada: (payload: { name: string; location?: string; match_time?: string }) =>
@@ -106,6 +110,7 @@ export const api = {
   togglePlayer: (id: number) => request<Player>(`/api/players/${id}/toggle-active`, { method: 'PATCH' }),
   togglePlayerPaid: (id: number) => request<Player>(`/api/players/${id}/toggle-paid`, { method: 'PATCH' }),
   togglePlayerMonthly: (id: number) => request<Player>(`/api/players/${id}/toggle-monthly`, { method: 'PATCH' }),
+  togglePlayerDaily: (id: number) => request<Player>(`/api/players/${id}/toggle-daily`, { method: 'PATCH' }),
   deactivateAllPlayers: () => request<Player[]>('/api/players/deactivate-all', { method: 'PATCH' }),
   playerProfile: (id: number) => request<PlayerProfile>(`/api/players/${id}/profile`),
 

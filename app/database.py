@@ -46,10 +46,12 @@ def ensure_legacy_multitenant_columns(target_engine: Engine = engine) -> None:
             "pelada_id": "INTEGER",
             "presence": "TEXT NOT NULL DEFAULT 'pending'",
             "paid_month": "TEXT",
+            "paid_date": "TEXT",
         },
         "matches": {"pelada_id": "INTEGER"},
         "match_teams": {"pelada_id": "INTEGER"},
         "match_players": {"pelada_id": "INTEGER"},
+        "finance_entries": {"ref_period": "TEXT"},
     }
 
     with target_engine.begin() as connection:
@@ -77,6 +79,8 @@ _POSTGRES_ENSURE_STATEMENTS = [
     "ALTER TABLE peladas ADD COLUMN IF NOT EXISTS monthly_fee DOUBLE PRECISION NOT NULL DEFAULT 0",
     "ALTER TABLE peladas ADD COLUMN IF NOT EXISTS monthly_due_day INTEGER NOT NULL DEFAULT 10",
     "ALTER TABLE players ADD COLUMN IF NOT EXISTS paid_month VARCHAR(7)",
+    "ALTER TABLE players ADD COLUMN IF NOT EXISTS paid_date VARCHAR(10)",
+    "ALTER TABLE finance_entries ADD COLUMN IF NOT EXISTS ref_period VARCHAR(10)",
     "ALTER TABLE peladas ADD COLUMN IF NOT EXISTS public_token VARCHAR(64)",
     "CREATE UNIQUE INDEX IF NOT EXISTS ix_peladas_public_token ON peladas (public_token)",
     "ALTER TABLE players ADD COLUMN IF NOT EXISTS presence VARCHAR(20) NOT NULL DEFAULT 'pending'",
@@ -111,6 +115,7 @@ _POSTGRES_ENSURE_STATEMENTS = [
         " amount DOUBLE PRECISION NOT NULL,"
         " description VARCHAR(160) NOT NULL DEFAULT '',"
         " player_id INTEGER REFERENCES players(id),"
+        " ref_period VARCHAR(10),"
         " created_at TIMESTAMP NOT NULL DEFAULT (now() AT TIME ZONE 'utc')"
         ")"
     ),
@@ -202,6 +207,7 @@ _SQLITE_ENSURE_STATEMENTS = [
         " amount REAL NOT NULL,"
         " description VARCHAR(160) NOT NULL DEFAULT '',"
         " player_id INTEGER,"
+        " ref_period VARCHAR(10),"
         " created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
         ")"
     ),

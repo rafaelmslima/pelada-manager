@@ -30,8 +30,17 @@ def current_month() -> str:
     return brasilia_today().strftime("%Y-%m")
 
 
+def today_iso() -> str:
+    return brasilia_today().isoformat()
+
+
 def mensalista_up_to_date(player: models.Player) -> bool:
     return player.paid_month == current_month()
+
+
+def diarista_paid_today(player: models.Player) -> bool:
+    """Diarista que pagou a diaria da pelada de hoje (reseta sozinho a cada dia, fuso BRT)."""
+    return player.paid_date == today_iso()
 
 
 def mensalista_overdue(player: models.Player, due_day: int) -> bool:
@@ -678,7 +687,10 @@ def get_finance_overview(db: Session, pelada: models.Pelada) -> schemas.FinanceO
     )
     income = sum(e.amount for e in entries if e.kind == "income")
     expense = sum(e.amount for e in entries if e.kind == "expense")
-    mensalistas = [p for p in get_players(db, pelada.id) if p.billing_type == "mensalista"]
+    players = get_players(db, pelada.id)
+    mensalistas = [p for p in players if p.billing_type == "mensalista"]
+    # Diaristas confirmados (presentes hoje) sao os que devem a diaria da pelada.
+    diaristas = [p for p in players if p.billing_type == "diarista" and p.is_active]
     return schemas.FinanceOverview(
         daily_fee=pelada.daily_fee,
         monthly_fee=pelada.monthly_fee,
@@ -694,6 +706,14 @@ def get_finance_overview(db: Session, pelada: models.Pelada) -> schemas.FinanceO
                 overdue=mensalista_overdue(p, pelada.monthly_due_day),
             )
             for p in mensalistas
+        ],
+        diaristas=[
+            schemas.DiaristaStatus(
+                player_id=p.id,
+                name=p.name,
+                paid=diarista_paid_today(p),
+            )
+            for p in diaristas
         ],
         entries=[_finance_entry_read(e) for e in entries],
     )
@@ -724,6 +744,15 @@ def get_finance_entry(db: Session, entry_id: int, pelada_id: int) -> models.Fina
 
 
 def delete_finance_entry(db: Session, entry: models.FinanceEntry) -> None:
+    # Se for o lancamento automatico de um pagamento, volta o jogador para pendente
+    # (mantem o extrato e a lista de mensalistas/diaristas em sincronia).
+    player = entry.player
+    ref = entry.ref_period
+    if player is not None and ref:
+        if player.paid_month == ref:
+            player.paid_month = None
+        if player.paid_date == ref:
+            player.paid_date = None
     db.delete(entry)
     db.commit()
 
@@ -737,9 +766,69 @@ def set_finance_settings(
     db.commit()
 
 
-def toggle_player_monthly_paid(db: Session, player: models.Player) -> models.Player:
-    """Marca/desmarca a mensalidade do mes atual (reseta sozinho na virada do mes)."""
-    player.paid_month = None if mensalista_up_to_date(player) else current_month()
+def _add_payment_income(
+    db: Session, player: models.Player, amount: float, ref_period: str, description: str
+) -> None:
+    """Lanca uma entrada no caixa vinculada a um pagamento (mensalidade/diaria)."""
+    if amount <= 0:
+        return
+    db.add(
+        models.FinanceEntry(
+            pelada_id=player.pelada_id,
+            kind="income",
+            amount=round(amount, 2),
+            description=description,
+            player_id=player.id,
+            ref_period=ref_period,
+        )
+    )
+
+
+def _remove_payment_income(db: Session, player: models.Player, ref_period: str) -> None:
+    """Estorna do caixa o(s) lancamento(s) automatico(s) daquele jogador/periodo."""
+    db.query(models.FinanceEntry).filter(
+        models.FinanceEntry.pelada_id == player.pelada_id,
+        models.FinanceEntry.player_id == player.id,
+        models.FinanceEntry.ref_period == ref_period,
+        models.FinanceEntry.kind == "income",
+    ).delete(synchronize_session=False)
+
+
+def toggle_player_monthly_paid(
+    db: Session, pelada: models.Pelada, player: models.Player
+) -> models.Player:
+    """Marca/desmarca a mensalidade do mes atual (reseta sozinho na virada do mes).
+
+    Ao marcar como pago, o caixa recebe automaticamente o valor da mensalidade
+    configurada na pelada; ao desmarcar, o lancamento e estornado.
+    """
+    month = current_month()
+    if mensalista_up_to_date(player):
+        player.paid_month = None
+        _remove_payment_income(db, player, month)
+    else:
+        player.paid_month = month
+        _add_payment_income(db, player, pelada.monthly_fee, month, f"Mensalidade — {player.name}")
+    db.commit()
+    db.refresh(player)
+    return player
+
+
+def toggle_player_daily_paid(
+    db: Session, pelada: models.Pelada, player: models.Player
+) -> models.Player:
+    """Marca/desmarca a diaria da pelada de hoje (reseta sozinho a cada dia).
+
+    Ao marcar como pago, o caixa recebe automaticamente o valor da diaria
+    configurada na pelada; ao desmarcar, o lancamento e estornado.
+    """
+    day = today_iso()
+    if diarista_paid_today(player):
+        player.paid_date = None
+        _remove_payment_income(db, player, day)
+    else:
+        player.paid_date = day
+        _add_payment_income(db, player, pelada.daily_fee, day, f"Diária — {player.name}")
     db.commit()
     db.refresh(player)
     return player

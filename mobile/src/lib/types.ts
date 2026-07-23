@@ -28,6 +28,8 @@ export type Pelada = {
   match_time: string;
   default_billing_type: BillingType;
   daily_fee: number;
+  monthly_fee: number;
+  monthly_due_day: number;
   created_at: string;
 };
 
@@ -48,6 +50,12 @@ export type MensalistaStatus = {
   overdue: boolean;
 };
 
+export type DiaristaStatus = {
+  player_id: number;
+  name: string;
+  paid: boolean;
+};
+
 export type FinanceOverview = {
   daily_fee: number;
   monthly_fee: number;
@@ -56,6 +64,7 @@ export type FinanceOverview = {
   total_expense: number;
   balance: number;
   mensalistas: MensalistaStatus[];
+  diaristas: DiaristaStatus[];
   entries: FinanceEntry[];
 };
 

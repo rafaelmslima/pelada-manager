@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Sheet } from '@/components/Sheet';
@@ -16,44 +16,23 @@ export default function FinanceScreen() {
   const insets = useSafeAreaInsets();
 
   const [data, setData] = useState<FinanceOverview | null>(null);
-  const [feeInput, setFeeInput] = useState('');
-  const [monthlyInput, setMonthlyInput] = useState('');
-  const [dueDayInput, setDueDayInput] = useState('10');
   const [entrySheet, setEntrySheet] = useState<'income' | 'expense' | null>(null);
 
   const load = useCallback(() => {
     api
       .getFinance()
-      .then((overview) => {
-        setData(overview);
-        setFeeInput(overview.daily_fee ? String(overview.daily_fee) : '');
-        setMonthlyInput(overview.monthly_fee ? String(overview.monthly_fee) : '');
-        setDueDayInput(String(overview.monthly_due_day || 10));
-      })
+      .then(setData)
       .catch(() => {});
   }, []);
 
   useEffect(() => load(), [load]);
 
-  async function saveSettings() {
+  async function toggleDiarista(playerId: number) {
     try {
-      setData(
-        await api.setFinanceSettings({
-          daily_fee: Math.max(0, Number(feeInput.replace(',', '.')) || 0),
-          monthly_fee: Math.max(0, Number(monthlyInput.replace(',', '.')) || 0),
-          monthly_due_day: Math.min(28, Math.max(1, parseInt(dueDayInput, 10) || 10)),
-        }),
-      );
+      await api.togglePlayerDaily(playerId);
+      load();
     } catch {
       /* ignora */
-    }
-  }
-
-  async function collectDaily() {
-    try {
-      setData(await api.collectDaily());
-    } catch (err) {
-      Alert.alert('Não foi possível cobrar', err instanceof Error ? err.message : 'Erro.');
     }
   }
 
@@ -83,6 +62,11 @@ export default function FinanceScreen() {
     ]);
   }
 
+  const diaristas = data?.diaristas ?? [];
+  const mensalistas = data?.mensalistas ?? [];
+  const hasPayers = diaristas.length > 0 || mensalistas.length > 0;
+  const feeMissing = data && ((diaristas.length > 0 && data.daily_fee <= 0) || (mensalistas.length > 0 && data.monthly_fee <= 0));
+
   return (
     <ScrollView
       style={styles.page}
@@ -105,47 +89,67 @@ export default function FinanceScreen() {
         </View>
       </View>
 
-      {/* Valores */}
+      {feeMissing ? (
+        <TouchableOpacity style={styles.warnBanner} onPress={() => router.push('/pelada-config')} activeOpacity={0.8}>
+          <Ionicons name="alert-circle" size={18} color={colors.absT} />
+          <Text style={styles.warnText}>Defina os valores em Configurar pelada para o caixa atualizar sozinho.</Text>
+        </TouchableOpacity>
+      ) : null}
+
+      {/* Pagamentos */}
       <View style={styles.card}>
-        <Text style={styles.section}>Valores</Text>
-        <View style={styles.valuesRow}>
-          <View style={styles.valueField}>
-            <Text style={styles.valueLabel}>Diária (R$)</Text>
-            <TextInput
-              style={styles.feeInput}
-              value={feeInput}
-              onChangeText={setFeeInput}
-              keyboardType="decimal-pad"
-              placeholder="0,00"
-              placeholderTextColor={colors.ink4}
-            />
-          </View>
-          <View style={styles.valueField}>
-            <Text style={styles.valueLabel}>Mensalidade (R$)</Text>
-            <TextInput
-              style={styles.feeInput}
-              value={monthlyInput}
-              onChangeText={setMonthlyInput}
-              keyboardType="decimal-pad"
-              placeholder="0,00"
-              placeholderTextColor={colors.ink4}
-            />
-          </View>
-          <View style={{ width: 90 }}>
-            <Text style={styles.valueLabel}>Vence dia</Text>
-            <TextInput
-              style={styles.feeInput}
-              value={dueDayInput}
-              onChangeText={setDueDayInput}
-              keyboardType="number-pad"
-              maxLength={2}
-              placeholder="10"
-              placeholderTextColor={colors.ink4}
-            />
-          </View>
-        </View>
-        <GhostButton label="Salvar valores" onPress={saveSettings} />
-        <PrimaryButton label="Cobrar diária dos confirmados" onPress={collectDaily} />
+        <Text style={styles.section}>Pagamentos</Text>
+        <Text style={styles.hint}>
+          Toque num jogador para marcar/desmarcar o pagamento. O caixa é atualizado automaticamente com o valor da
+          pelada.
+        </Text>
+
+        {!hasPayers ? (
+          <Text style={styles.empty}>Confirme jogadores no sorteio para cobrar aqui.</Text>
+        ) : null}
+
+        {diaristas.length > 0 ? (
+          <>
+            <Text style={styles.subhead}>Diaristas de hoje</Text>
+            {diaristas.map((d) => (
+              <TouchableOpacity
+                key={`d-${d.player_id}`}
+                style={styles.payRow}
+                onPress={() => toggleDiarista(d.player_id)}
+                activeOpacity={0.7}>
+                <Text style={styles.payName}>{d.name}</Text>
+                <View style={[styles.badge, { backgroundColor: d.paid ? colors.confBg : colors.pendBg }]}>
+                  <Text style={[styles.badgeText, { color: d.paid ? colors.confT : colors.pendT }]}>
+                    {d.paid ? 'Pago' : 'Pendente'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </>
+        ) : null}
+
+        {mensalistas.length > 0 ? (
+          <>
+            <Text style={styles.subhead}>Mensalistas</Text>
+            {mensalistas.map((m) => {
+              const label = m.up_to_date ? 'Em dia' : m.overdue ? 'Atrasado' : 'Pendente';
+              const color = m.up_to_date ? colors.confT : m.overdue ? colors.absT : colors.pendT;
+              const bg = m.up_to_date ? colors.confBg : m.overdue ? colors.absBg : colors.pendBg;
+              return (
+                <TouchableOpacity
+                  key={`m-${m.player_id}`}
+                  style={styles.payRow}
+                  onPress={() => toggleMensalista(m.player_id)}
+                  activeOpacity={0.7}>
+                  <Text style={styles.payName}>{m.name}</Text>
+                  <View style={[styles.badge, { backgroundColor: bg }]}>
+                    <Text style={[styles.badgeText, { color }]}>{label}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </>
+        ) : null}
       </View>
 
       {/* Ações rápidas */}
@@ -157,33 +161,6 @@ export default function FinanceScreen() {
           <GhostButton label="− Saída" tone="danger" onPress={() => setEntrySheet('expense')} />
         </View>
       </View>
-
-      {/* Mensalistas */}
-      {data && data.mensalistas.length > 0 && (
-        <View style={styles.card}>
-          <Text style={styles.section}>Mensalistas</Text>
-          <Text style={styles.mensHint}>
-            Todo início de mês voltam para pendente. Toque para marcar o pagamento do mês.
-          </Text>
-          {data.mensalistas.map((m) => {
-            const label = m.up_to_date ? 'Em dia' : m.overdue ? 'Atrasado' : 'Pendente';
-            const color = m.up_to_date ? colors.confT : m.overdue ? colors.absT : colors.pendT;
-            const bg = m.up_to_date ? colors.confBg : m.overdue ? colors.absBg : colors.pendBg;
-            return (
-              <TouchableOpacity
-                key={m.player_id}
-                style={styles.mensRow}
-                onPress={() => toggleMensalista(m.player_id)}
-                activeOpacity={0.7}>
-                <Text style={styles.mensName}>{m.name}</Text>
-                <View style={[styles.mensBadge, { backgroundColor: bg }]}>
-                  <Text style={[styles.mensBadgeText, { color }]}>{label}</Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      )}
 
       {/* Extrato */}
       <Text style={styles.section}>Extrato</Text>
@@ -280,6 +257,16 @@ const styles = StyleSheet.create({
   caixaIn: { color: colors.green, fontSize: 14, fontWeight: '700' },
   caixaOut: { color: colors.danger, fontSize: 14, fontWeight: '700' },
 
+  warnBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.two,
+    backgroundColor: colors.absBg,
+    borderRadius: radius.cardSm,
+    padding: spacing.three,
+  },
+  warnText: { color: colors.absT, fontSize: 12, flex: 1, fontWeight: '600' },
+
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.cardMd,
@@ -289,25 +276,11 @@ const styles = StyleSheet.create({
     gap: spacing.three,
   },
   section: { color: colors.ink, fontSize: 16, fontFamily: fonts.extrabold },
-  valuesRow: { flexDirection: 'row', gap: spacing.two },
-  valueField: { flex: 1, gap: spacing.one },
-  valueLabel: { color: colors.ink3, fontSize: 11, fontFamily: fonts.bold },
-  feeInput: {
-    backgroundColor: colors.page,
-    borderRadius: radius.input,
-    borderWidth: 1,
-    borderColor: colors.border2,
-    paddingHorizontal: spacing.two,
-    paddingVertical: spacing.three,
-    color: colors.ink,
-    fontSize: 16,
-    fontFamily: fonts.bold,
-    textAlign: 'center',
-  },
+  subhead: { color: colors.ink3, fontSize: 12, fontFamily: fonts.bold, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: spacing.one },
+  hint: { color: colors.ink3, fontSize: 12, lineHeight: 16 },
   actionsRow: { flexDirection: 'row', gap: spacing.three },
-  mensHint: { color: colors.ink3, fontSize: 12, lineHeight: 16 },
 
-  mensRow: {
+  payRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -315,11 +288,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  mensName: { color: colors.ink, fontSize: 14, fontWeight: '600' },
-  mensBadge: { paddingHorizontal: spacing.three, paddingVertical: spacing.one, borderRadius: radius.chip },
-  paidBadge: { backgroundColor: colors.confBg },
-  dueBadge: { backgroundColor: colors.absBg },
-  mensBadgeText: { fontSize: 12, fontWeight: '700' },
+  payName: { color: colors.ink, fontSize: 14, fontWeight: '600' },
+  badge: { paddingHorizontal: spacing.three, paddingVertical: spacing.one, borderRadius: radius.chip },
+  badgeText: { fontSize: 12, fontWeight: '700' },
 
   empty: { color: colors.ink3, fontSize: 13 },
   entryRow: {

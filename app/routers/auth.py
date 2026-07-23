@@ -86,6 +86,9 @@ def update_pelada(
     pelada.location = payload.location
     pelada.match_time = payload.match_time or "20:00"
     pelada.default_billing_type = payload.default_billing_type
+    pelada.daily_fee = max(0.0, payload.daily_fee)
+    pelada.monthly_fee = max(0.0, payload.monthly_fee)
+    pelada.monthly_due_day = min(28, max(1, payload.monthly_due_day))
     db.commit()
     db.refresh(current_user)
     return serialize_current_user(current_user)

@@ -126,6 +126,9 @@ class Player(Base):
     has_paid: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # Mes ("YYYY-MM") pelo qual o mensalista esta pago. None/mes diferente = pendente.
     paid_month: Mapped[str | None] = mapped_column(String(7), nullable=True)
+    # Dia ("YYYY-MM-DD") em que o diarista pagou a diaria. None/dia diferente = pendente
+    # (reseta sozinho a cada nova pelada/dia).
+    paid_date: Mapped[str | None] = mapped_column(String(10), nullable=True)
     whatsapp: Mapped[str] = mapped_column(String(30), default="", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, nullable=False)
 
@@ -198,6 +201,9 @@ class FinanceEntry(Base):
     description: Mapped[str] = mapped_column(String(160), default="", nullable=False)
     # Jogador associado (ex.: quem pagou a diaria); opcional.
     player_id: Mapped[int | None] = mapped_column(ForeignKey("players.id"), nullable=True, index=True)
+    # Periodo de referencia de um pagamento automatico: "YYYY-MM" (mensalidade) ou
+    # "YYYY-MM-DD" (diaria). Permite localizar/estornar o lancamento ao desmarcar o pagamento.
+    ref_period: Mapped[str | None] = mapped_column(String(10), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, nullable=False)
 
     player: Mapped["Player | None"] = relationship()
