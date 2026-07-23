@@ -8,37 +8,61 @@ import { PeladaSwitcherSheet } from '@/components/PeladaSwitcherSheet';
 import { Screen } from '@/components/Screen';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { greeting } from '@/lib/format';
-import type { Player, RankingsSummary } from '@/lib/types';
+import { formatMoney, greeting } from '@/lib/format';
+import { haptics } from '@/lib/haptics';
+import type { FinanceOverview, Player, RankingsSummary } from '@/lib/types';
 import { colors, fonts, radius, spacing } from '@/theme';
+
+type StatItem = { label: string; value: string; icon: keyof typeof Ionicons.glyphMap; path: string };
 
 export default function HomeScreen() {
   const { session } = useAuth();
   const router = useRouter();
   const [players, setPlayers] = useState<Player[]>([]);
   const [rankings, setRankings] = useState<RankingsSummary | null>(null);
+  const [finance, setFinance] = useState<FinanceOverview | null>(null);
+  const [matchCount, setMatchCount] = useState(0);
   const [switcherOpen, setSwitcherOpen] = useState(false);
 
   const load = useCallback(() => {
     api.listPlayers().then(setPlayers).catch(() => {});
     api.rankings().then(setRankings).catch(() => {});
+    api.getFinance().then(setFinance).catch(() => setFinance(null));
+    api.listMatches().then((m) => setMatchCount(m.length)).catch(() => {});
   }, []);
 
   useFocusEffect(useCallback(() => load(), [load]));
 
   if (!session) return null;
 
+  function go(path: string) {
+    haptics.select();
+    router.push(path as never);
+  }
+
   const pelada = session.pelada;
+  const firstName = session.user.name?.trim().split(' ')[0];
   const confirmed = players.filter((p) => p.presence === 'confirmed').length;
   const declined = players.filter((p) => p.presence === 'declined').length;
   const pending = players.length - confirmed - declined;
   const progress = players.length ? Math.round((confirmed / players.length) * 100) : 0;
+
   const topScorer = rankings?.scorers.players[0];
+  const topAssister = rankings?.assists.players[0];
+  const overdueCount = finance?.mensalistas.filter((m) => m.overdue).length ?? 0;
+
+  const stats: StatItem[] = [
+    ...(finance ? [{ label: 'Caixa', value: formatMoney(finance.balance), icon: 'wallet' as const, path: '/financeiro' }] : []),
+    { label: 'Elenco', value: String(players.length), icon: 'people', path: '/jogadores' },
+    { label: 'Peladas', value: String(matchCount), icon: 'calendar', path: '/times' },
+  ];
 
   return (
     <Screen>
       <View style={styles.header}>
-        <Text style={styles.greeting}>{greeting()}, dono da bola</Text>
+        <Text style={styles.greeting}>
+          {greeting()}, {firstName || 'dono da bola'} 👋
+        </Text>
         <TouchableOpacity style={styles.titleRow} onPress={() => setSwitcherOpen(true)} activeOpacity={0.7}>
           <Text style={styles.title}>{pelada.name}</Text>
           <Ionicons name="chevron-down" size={20} color={colors.ink3} />
@@ -50,7 +74,8 @@ export default function HomeScreen() {
 
       <PeladaSwitcherSheet visible={switcherOpen} onClose={() => setSwitcherOpen(false)} />
 
-      <View style={styles.heroCard}>
+      {/* Presença de hoje */}
+      <TouchableOpacity style={styles.heroCard} activeOpacity={0.9} onPress={() => go('/jogadores')}>
         <View style={styles.chip}>
           <View style={styles.chipDot} />
           <Text style={styles.chipText}>Presença de hoje</Text>
@@ -59,7 +84,7 @@ export default function HomeScreen() {
           {confirmed}
           <Text style={styles.counterTotal}> / {players.length}</Text>
         </Text>
-        <Text style={styles.counterLabel}>confirmados</Text>
+        <Text style={styles.counterLabel}>confirmados · {progress}%</Text>
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${progress}%` }]} />
         </View>
@@ -68,24 +93,65 @@ export default function HomeScreen() {
           <Breakdown color={colors.pend} label="Pendentes" value={pending} />
           <Breakdown color={colors.abs} label="Não vão" value={declined} />
         </View>
-      </View>
+      </TouchableOpacity>
 
       <ConvocarButton peladaName={pelada.name} />
 
-      <View style={styles.actionsRow}>
-        <QuickAction icon="shirt" label="Gerar times" onPress={() => router.push('/times')} />
-        <QuickAction icon="people" label="Jogadores" onPress={() => router.push('/jogadores')} />
+      {/* Pendência: mensalistas atrasados */}
+      {overdueCount > 0 && (
+        <TouchableOpacity style={styles.alert} onPress={() => go('/financeiro')} activeOpacity={0.85}>
+          <Ionicons name="alert-circle" size={20} color={colors.absT} />
+          <Text style={styles.alertText}>
+            {overdueCount} mensalista{overdueCount > 1 ? 's' : ''} com pagamento atrasado
+          </Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.absT} />
+        </TouchableOpacity>
+      )}
+
+      {/* Mini indicadores */}
+      <View style={styles.statsRow}>
+        {stats.map((s) => (
+          <TouchableOpacity key={s.label} style={styles.statCard} onPress={() => go(s.path)} activeOpacity={0.85}>
+            <Ionicons name={s.icon} size={18} color={colors.ink3} />
+            <Text style={styles.statValue} numberOfLines={1}>
+              {s.value}
+            </Text>
+            <Text style={styles.statLabel}>{s.label}</Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
-      {topScorer && (
-        <View style={styles.highlight}>
-          <Ionicons name="football" size={22} color={colors.gold} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.highlightLabel}>Artilheiro</Text>
-            <Text style={styles.highlightName}>{topScorer.name}</Text>
+      {/* Ações rápidas */}
+      <View style={styles.actionsRow}>
+        <QuickAction icon="shirt" label="Gerar times" onPress={() => go('/times')} />
+        <QuickAction icon="podium" label="Ranking" onPress={() => go('/ranking')} />
+      </View>
+
+      {/* Destaques */}
+      {(topScorer || topAssister) && (
+        <>
+          <Text style={styles.sectionTitle}>Destaques</Text>
+          <View style={styles.hlRow}>
+            {topScorer && (
+              <HighlightCard
+                icon="football"
+                iconColor={colors.gold}
+                label="Artilheiro"
+                name={topScorer.name}
+                value={`${topScorer.goals} ${topScorer.goals === 1 ? 'gol' : 'gols'}`}
+              />
+            )}
+            {topAssister && topAssister.assists > 0 && (
+              <HighlightCard
+                icon="sparkles"
+                iconColor={colors.green}
+                label="Garçom"
+                name={topAssister.name}
+                value={`${topAssister.assists} assist.`}
+              />
+            )}
           </View>
-          <Text style={styles.highlightValue}>{topScorer.goals} gols</Text>
-        </View>
+        </>
       )}
     </Screen>
   );
@@ -115,6 +181,33 @@ function QuickAction({
       <Ionicons name={icon} size={22} color={colors.ink} />
       <Text style={styles.quickLabel}>{label}</Text>
     </TouchableOpacity>
+  );
+}
+
+function HighlightCard({
+  icon,
+  iconColor,
+  label,
+  name,
+  value,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  iconColor: string;
+  label: string;
+  name: string;
+  value: string;
+}) {
+  return (
+    <View style={styles.hlCard}>
+      <View style={styles.hlHead}>
+        <Ionicons name={icon} size={18} color={iconColor} />
+        <Text style={styles.hlLabel}>{label}</Text>
+      </View>
+      <Text style={styles.hlName} numberOfLines={1}>
+        {name}
+      </Text>
+      <Text style={styles.hlValue}>{value}</Text>
+    </View>
   );
 }
 
@@ -149,6 +242,31 @@ const styles = StyleSheet.create({
   breakValue: { color: colors.onDark, fontSize: 14, fontWeight: '800' },
   breakLabel: { color: colors.onDark2, fontSize: 11 },
 
+  alert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.two,
+    backgroundColor: colors.absBg,
+    borderRadius: radius.cardMd,
+    padding: spacing.four,
+  },
+  alertText: { flex: 1, color: colors.absT, fontSize: 13, fontFamily: fonts.bold },
+
+  statsRow: { flexDirection: 'row', gap: spacing.three },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radius.cardMd,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.four,
+    paddingHorizontal: spacing.two,
+    alignItems: 'center',
+    gap: spacing.one,
+  },
+  statValue: { color: colors.ink, fontSize: 20, fontFamily: fonts.extrabold },
+  statLabel: { color: colors.ink3, fontSize: 11, fontFamily: fonts.semibold },
+
   actionsRow: { flexDirection: 'row', gap: spacing.three },
   quick: {
     flex: 1,
@@ -162,17 +280,19 @@ const styles = StyleSheet.create({
   },
   quickLabel: { color: colors.ink, fontSize: 13, fontWeight: '700' },
 
-  highlight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.three,
+  sectionTitle: { color: colors.ink, fontSize: 16, fontFamily: fonts.extrabold, marginTop: spacing.one },
+  hlRow: { flexDirection: 'row', gap: spacing.three },
+  hlCard: {
+    flex: 1,
     backgroundColor: colors.surface,
     borderRadius: radius.cardMd,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.four,
+    gap: spacing.one,
   },
-  highlightLabel: { color: colors.ink3, fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
-  highlightName: { color: colors.ink, fontSize: 16, fontWeight: '800' },
-  highlightValue: { color: colors.ink2, fontSize: 14, fontWeight: '700' },
+  hlHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.two },
+  hlLabel: { color: colors.ink3, fontSize: 12, fontFamily: fonts.bold, textTransform: 'uppercase', letterSpacing: 0.5 },
+  hlName: { color: colors.ink, fontSize: 16, fontFamily: fonts.extrabold, marginTop: spacing.one },
+  hlValue: { color: colors.ink2, fontSize: 13, fontFamily: fonts.semibold },
 });

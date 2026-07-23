@@ -75,6 +75,18 @@ def me(current_user: models.User | None = Depends(get_current_user)):
     return serialize_current_user(current_user)
 
 
+@router.put("/me", response_model=schemas.AuthMeResponse)
+def update_profile(
+    payload: schemas.ProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_user),
+):
+    current_user.name = payload.name
+    db.commit()
+    db.refresh(current_user)
+    return serialize_current_user(current_user)
+
+
 @router.put("/pelada", response_model=schemas.AuthMeResponse)
 def update_pelada(
     payload: schemas.PeladaUpdate,

@@ -31,7 +31,11 @@ def ensure_legacy_multitenant_columns(target_engine: Engine = engine) -> None:
 
     # Mapa coluna -> DDL para cada tabela (usado apenas em SQLite legado).
     required_by_table = {
-        "users": {"active_pelada_id": "INTEGER", "plan": "TEXT NOT NULL DEFAULT 'free'"},
+        "users": {
+            "active_pelada_id": "INTEGER",
+            "plan": "TEXT NOT NULL DEFAULT 'free'",
+            "name": "TEXT NOT NULL DEFAULT ''",
+        },
         "peladas": {
             "location": "TEXT NOT NULL DEFAULT ''",
             "match_time": "TEXT NOT NULL DEFAULT '20:00'",
@@ -122,6 +126,7 @@ _POSTGRES_ENSURE_STATEMENTS = [
         ")"
     ),
     "CREATE INDEX IF NOT EXISTS ix_finance_entries_pelada_id ON finance_entries (pelada_id)",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS name VARCHAR(120) NOT NULL DEFAULT ''",
     # Freemium
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS plan VARCHAR(20) NOT NULL DEFAULT 'free'",
     # Multi-pelada

@@ -117,13 +117,17 @@ export default function LoginScreen() {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity onPress={() => setShowServer((v) => !v)} activeOpacity={0.7}>
-          <Text style={styles.serverToggle}>{showServer ? 'Ocultar servidor' : 'Configurar servidor'}</Text>
-        </TouchableOpacity>
-        {showServer && (
-          <View style={styles.card}>
-            <ServerUrlField />
-          </View>
+        {__DEV__ && (
+          <>
+            <TouchableOpacity onPress={() => setShowServer((v) => !v)} activeOpacity={0.7}>
+              <Text style={styles.serverToggle}>{showServer ? 'Ocultar servidor' : 'Configurar servidor'}</Text>
+            </TouchableOpacity>
+            {showServer && (
+              <View style={styles.card}>
+                <ServerUrlField />
+              </View>
+            )}
+          </>
         )}
       </ScrollView>
     </KeyboardAvoidingView>

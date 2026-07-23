@@ -51,8 +51,18 @@ class UserRead(BaseModel):
 
     id: int
     email: str
+    name: str = ""
     plan: str = "free"
     created_at: datetime
+
+
+class ProfileUpdate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=120)
+
+    @field_validator("name")
+    @classmethod
+    def strip_name(cls, value: str) -> str:
+        return value.strip()
 
 
 class PeladaRead(BaseModel):

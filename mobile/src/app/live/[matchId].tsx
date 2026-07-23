@@ -19,6 +19,7 @@ import { Sheet } from '@/components/Sheet';
 import { PrimaryButton } from '@/components/form';
 import { api } from '@/lib/api';
 import { formatPosition, formatRating } from '@/lib/format';
+import { haptics } from '@/lib/haptics';
 import { cancelTimerAlarm, scheduleTimerAlarm } from '@/lib/matchTimer';
 import type { MatchPlayer, MatchRead, MatchTeam, RoundsOverview } from '@/lib/types';
 import { colors, fonts, radius, spacing } from '@/theme';
@@ -183,6 +184,7 @@ export default function LiveMatchScreen() {
     if (running && endsAt != null && nowTick >= endsAt) {
       setRunning(false);
       setPausedRemaining(0);
+      haptics.warning();
     }
   }, [running, endsAt, nowTick]);
 
@@ -278,6 +280,7 @@ export default function LiveMatchScreen() {
   // Retoma um confronto salvo (card "em andamento" ou toque na notificação).
   const resumeConfronto = useCallback(
     (blob: LiveBlob) => {
+      haptics.light();
       setTeamAId(blob.teamAId);
       setTeamBId(blob.teamBId);
       setRoundDurationSec(blob.roundDurationSec);
@@ -321,6 +324,7 @@ export default function LiveMatchScreen() {
   function addReforco(side: 'A' | 'B', playerId: number) {
     const teamId = side === 'A' ? teamAId : teamBId;
     if (teamId == null) return;
+    haptics.light();
     setBorrows((prev) => {
       const cur = prev[teamId] ?? [];
       if (cur.includes(playerId)) return prev;
@@ -340,6 +344,8 @@ export default function LiveMatchScreen() {
   const timeUp = mode === 'playing' && remainingMs <= 0;
 
   function bump(playerId: number, key: 'goals' | 'assists', delta: number) {
+    if (delta > 0) haptics[key === 'goals' ? 'medium' : 'light']();
+    else haptics.select();
     setStats((prev) => {
       const cur = prev[playerId] ?? { goals: 0, assists: 0 };
       return { ...prev, [playerId]: { ...cur, [key]: Math.max(0, cur[key] + delta) } };
@@ -348,6 +354,7 @@ export default function LiveMatchScreen() {
 
   async function startConfronto() {
     if (teamAId == null || teamBId == null || teamAId === teamBId) return;
+    haptics.medium();
     const secs = Math.max(1, parseInt(durationMin, 10) || 10) * 60;
     setPendingResume(null);
     setRoundDurationSec(secs);
@@ -388,6 +395,7 @@ export default function LiveMatchScreen() {
 
   async function finishConfronto() {
     if (teamAId == null || teamBId == null || !match) return;
+    haptics.success();
     await cancelTimerAlarm(alarmId);
     setAlarmId(null);
     setRunning(false);
@@ -439,6 +447,7 @@ export default function LiveMatchScreen() {
   }
 
   function encerrarPelada() {
+    haptics.success();
     setResenhaOpen(true);
   }
 
@@ -620,12 +629,21 @@ export default function LiveMatchScreen() {
               <Text style={styles.scoreValue}>{goalsA}</Text>
               <View style={styles.quickGoalRow}>
                 <TouchableOpacity
-                  onPress={() => setTeamGoalsA((g) => Math.max(0, g - 1))}
+                  onPress={() => {
+                    haptics.select();
+                    setTeamGoalsA((g) => Math.max(0, g - 1));
+                  }}
                   hitSlop={6}
                   style={styles.quickGoalMinus}>
                   <Ionicons name="remove" size={16} color={colors.onDark} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setTeamGoalsA((g) => g + 1)} style={styles.quickGoalAdd} activeOpacity={0.85}>
+                <TouchableOpacity
+                  onPress={() => {
+                    haptics.medium();
+                    setTeamGoalsA((g) => g + 1);
+                  }}
+                  style={styles.quickGoalAdd}
+                  activeOpacity={0.85}>
                   <Ionicons name="football" size={13} color={colors.onDark} />
                   <Text style={styles.quickGoalText}>Gol</Text>
                 </TouchableOpacity>
@@ -639,12 +657,21 @@ export default function LiveMatchScreen() {
               <Text style={styles.scoreValue}>{goalsB}</Text>
               <View style={styles.quickGoalRow}>
                 <TouchableOpacity
-                  onPress={() => setTeamGoalsB((g) => Math.max(0, g - 1))}
+                  onPress={() => {
+                    haptics.select();
+                    setTeamGoalsB((g) => Math.max(0, g - 1));
+                  }}
                   hitSlop={6}
                   style={styles.quickGoalMinus}>
                   <Ionicons name="remove" size={16} color={colors.onDark} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setTeamGoalsB((g) => g + 1)} style={styles.quickGoalAdd} activeOpacity={0.85}>
+                <TouchableOpacity
+                  onPress={() => {
+                    haptics.medium();
+                    setTeamGoalsB((g) => g + 1);
+                  }}
+                  style={styles.quickGoalAdd}
+                  activeOpacity={0.85}>
                   <Ionicons name="football" size={13} color={colors.onDark} />
                   <Text style={styles.quickGoalText}>Gol</Text>
                 </TouchableOpacity>

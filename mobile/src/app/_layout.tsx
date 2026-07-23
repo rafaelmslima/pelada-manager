@@ -62,6 +62,7 @@ function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
         <Stack.Screen name="live/[matchId]" />
         <Stack.Screen name="financeiro" />
         <Stack.Screen name="pelada-config" />
+        <Stack.Screen name="perfil" />
         <Stack.Screen name="premium" />
       </Stack>
       {!ready && (

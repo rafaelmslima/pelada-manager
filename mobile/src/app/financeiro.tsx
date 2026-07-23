@@ -8,6 +8,7 @@ import { Sheet } from '@/components/Sheet';
 import { Field, GhostButton, PrimaryButton } from '@/components/form';
 import { api } from '@/lib/api';
 import { formatMoney } from '@/lib/format';
+import { haptics } from '@/lib/haptics';
 import type { FinanceOverview } from '@/lib/types';
 import { colors, fonts, radius, spacing } from '@/theme';
 
@@ -28,6 +29,7 @@ export default function FinanceScreen() {
   useEffect(() => load(), [load]);
 
   async function toggleDiarista(playerId: number) {
+    haptics.light();
     try {
       await api.togglePlayerDaily(playerId);
       load();
@@ -37,6 +39,7 @@ export default function FinanceScreen() {
   }
 
   async function toggleMensalista(playerId: number) {
+    haptics.light();
     try {
       await api.togglePlayerMonthly(playerId);
       load();

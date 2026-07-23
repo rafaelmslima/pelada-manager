@@ -8,6 +8,7 @@ export type PresenceStatus = 'pending' | 'confirmed' | 'declined';
 export type User = {
   id: number;
   email: string;
+  name: string;
   plan: string;
   created_at: string;
 };

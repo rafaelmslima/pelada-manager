@@ -7,8 +7,9 @@ import { clearApiUrl, getApiUrl, saveApiUrl } from '@/lib/storage';
 import { colors, spacing } from '@/theme';
 
 /**
- * Permite apontar o app para outro backend (ex.: Railway) sem rebuild.
- * Salva o override no device e aplica imediatamente.
+ * Campo de depuração para apontar o app a outro backend. Só aparece em desenvolvimento
+ * (`__DEV__`) — em produção o app já usa o backend do Railway automaticamente, então o
+ * usuário final não vê nem precisa configurar nada.
  */
 export function ServerUrlField() {
   const [url, setUrl] = useState('');
@@ -34,6 +35,9 @@ export function ServerUrlField() {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
+
+  // Em produção o app já aponta para o Railway; escondemos o campo do usuário final.
+  if (!__DEV__) return null;
 
   return (
     <View style={styles.wrap}>

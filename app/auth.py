@@ -136,7 +136,11 @@ def register_user(db: Session, payload: schemas.AuthRegisterRequest) -> models.U
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email ja cadastrado.")
 
-    user = models.User(email=payload.email.lower(), password_hash=hash_password(payload.password))
+    user = models.User(
+        email=payload.email.lower(),
+        password_hash=hash_password(payload.password),
+        name=payload.name.strip(),
+    )
     db.add(user)
     db.flush()
 

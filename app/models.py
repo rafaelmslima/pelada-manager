@@ -18,6 +18,8 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Nome de exibicao do usuario (informado no cadastro).
+    name: Mapped[str] = mapped_column(String(120), default="", nullable=False)
     # Plano do usuario: "free" | "premium".
     plan: Mapped[str] = mapped_column(String(20), default="free", nullable=False)
     # Pelada atualmente selecionada (multi-pelada). Sem FK para evitar ciclo users<->peladas.

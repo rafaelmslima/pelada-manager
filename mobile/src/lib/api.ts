@@ -89,6 +89,7 @@ export const api = {
       'name' | 'location' | 'match_time' | 'default_billing_type' | 'daily_fee' | 'monthly_fee' | 'monthly_due_day'
     >,
   ) => request<AuthMe>('/api/auth/pelada', { method: 'PUT', json: payload }),
+  updateProfile: (name: string) => request<AuthMe>('/api/auth/me', { method: 'PUT', json: { name } }),
 
   listPeladas: () => request<PeladaMembership[]>('/api/peladas'),
   createPelada: (payload: { name: string; location?: string; match_time?: string }) =>

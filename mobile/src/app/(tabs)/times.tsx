@@ -13,6 +13,7 @@ import { Sheet } from '@/components/Sheet';
 import { GhostButton, PrimaryButton } from '@/components/form';
 import { api, ApiError } from '@/lib/api';
 import { formatDate, formatDateDisplay, formatMonthLabel, formatPosition, formatRating } from '@/lib/format';
+import { haptics } from '@/lib/haptics';
 import type { MatchListItem, TeamPlayer, TeamResult } from '@/lib/types';
 import { colors, fonts, radius, spacing } from '@/theme';
 
@@ -130,6 +131,7 @@ export default function TimesScreen() {
       const resp = await api.generateTeams(value);
       setTeams(resp.teams);
       setOverdue(resp.overdue_mensalistas);
+      haptics[resp.overdue_mensalistas.length > 0 ? 'warning' : 'success']();
       if (resp.overdue_mensalistas.length > 0) {
         const nomes = resp.overdue_mensalistas.map((m) => m.name).join(', ');
         Alert.alert(
@@ -146,6 +148,7 @@ export default function TimesScreen() {
 
   function moveTo(toIndex: number) {
     if (!teams || !moving) return;
+    haptics.light();
     const { player, fromIndex } = moving;
     setTeams(
       teams.map((team, i) => {
@@ -178,6 +181,7 @@ export default function TimesScreen() {
       });
       setTeams(null);
       loadMatches();
+      haptics.success();
       Alert.alert('Pronto', 'Pelada salva no histórico.');
     } catch (err) {
       Alert.alert('Não foi possível salvar', err instanceof ApiError ? err.message : 'Erro.');

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { PeladaSwitcherSheet } from '@/components/PeladaSwitcherSheet';
+import { PlayerAvatar } from '@/components/PlayerAvatar';
 import { ReminderSheet } from '@/components/ReminderSheet';
 import { Screen } from '@/components/Screen';
 import { ServerUrlField } from '@/components/ServerUrlField';
@@ -22,9 +23,24 @@ export default function ConfigScreen() {
 
   const isPremium = session.user.plan === 'premium';
 
+  const displayName = session.user.name || session.user.email;
+
   return (
     <Screen>
       <Text style={styles.title}>Configurações</Text>
+
+      <TouchableOpacity style={styles.profileRow} onPress={() => router.push('/perfil')} activeOpacity={0.7}>
+        <PlayerAvatar name={displayName} size={48} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.profileName} numberOfLines={1}>
+            {displayName}
+          </Text>
+          <Text style={styles.profileSub} numberOfLines={1}>
+            {session.user.email}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.ink4} />
+      </TouchableOpacity>
 
       <View style={styles.peladaCard}>
         <Text style={styles.peladaLabel}>Pelada atual</Text>
@@ -89,10 +105,6 @@ export default function ConfigScreen() {
 
       <View style={styles.card}>
         <Text style={styles.section}>Conta</Text>
-        <View>
-          <Text style={styles.label}>E-mail</Text>
-          <Text style={styles.value}>{session.user.email}</Text>
-        </View>
         <ServerUrlField />
         <GhostButton label="Sair da conta" tone="danger" onPress={signOut} />
       </View>
@@ -134,4 +146,17 @@ const styles = StyleSheet.create({
   },
   navTitle: { color: colors.ink, fontSize: 15, fontWeight: '700' },
   navSub: { color: colors.ink3, fontSize: 12 },
+
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.three,
+    backgroundColor: colors.surface,
+    borderRadius: radius.cardMd,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.four,
+  },
+  profileName: { color: colors.ink, fontSize: 17, fontFamily: fonts.extrabold },
+  profileSub: { color: colors.ink3, fontSize: 13 },
 });
