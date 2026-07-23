@@ -30,6 +30,27 @@ export function formatDateDisplay(value: string) {
   return `${day} ${MONTHS[parseInt(month, 10) - 1]} ${year}`;
 }
 
+const MONTHS_FULL = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+];
+
+/** Recebe uma chave "YYYY-MM" e devolve o rótulo do mês (ex.: "Julho 2026"). */
+export function formatMonthLabel(key: string) {
+  const [year, month] = key.split('-');
+  return `${MONTHS_FULL[parseInt(month, 10) - 1]} ${year}`;
+}
+
 export function initials(name: string) {
   return name
     .split(' ')

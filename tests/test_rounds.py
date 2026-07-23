@@ -94,6 +94,63 @@ class RoundsTest(unittest.TestCase):
         finally:
             db.close()
 
+    def test_wins_credited_to_winning_roster_and_profile(self):
+        db = _new_session()
+        try:
+            pelada, match, team_a, team_b, p1, p2 = _pelada_with_teams(db)
+            crud.create_round(
+                db,
+                match,
+                schemas.RoundCreate(
+                    team_a_id=team_a.id,
+                    team_b_id=team_b.id,
+                    goals_a=3,
+                    goals_b=1,
+                    team_a_players=[p1.id],
+                    team_b_players=[p2.id],
+                ),
+                pelada.id,
+            )
+            match = crud.get_match(db, match.id, pelada.id)
+            mp1 = next(mp for mp in match.players if mp.player_id == p1.id)
+            mp2 = next(mp for mp in match.players if mp.player_id == p2.id)
+            self.assertEqual(mp1.wins, 1)  # venceu
+            self.assertEqual(mp2.wins, 0)  # perdeu
+            self.assertEqual(crud.get_player_profile(db, p1, pelada.id).total_wins, 1)
+        finally:
+            db.close()
+
+    def test_delete_match_rounds_keeps_player_aggregates(self):
+        db = _new_session()
+        try:
+            pelada, match, team_a, team_b, p1, p2 = _pelada_with_teams(db)
+            crud.create_round(
+                db,
+                match,
+                schemas.RoundCreate(
+                    team_a_id=team_a.id,
+                    team_b_id=team_b.id,
+                    goals_a=2,
+                    goals_b=0,
+                    stats=[schemas.RoundPlayerStatInput(player_id=p1.id, goals=2)],
+                    team_a_players=[p1.id],
+                    team_b_players=[p2.id],
+                ),
+                pelada.id,
+            )
+            match = crud.get_match(db, match.id, pelada.id)
+            crud.delete_match_rounds(db, match)
+            match = crud.get_match(db, match.id, pelada.id)
+            overview = crud.get_rounds_overview(db, match, pelada.id)
+            self.assertEqual(len(overview.rounds), 0)  # confrontos apagados
+            self.assertIsNone(match.live_state)
+            # Agregados do jogador preservados (gols e vitória)
+            profile = crud.get_player_profile(db, p1, pelada.id)
+            self.assertEqual(profile.total_goals, 2)
+            self.assertEqual(profile.total_wins, 1)
+        finally:
+            db.close()
+
     def test_round_rejects_same_team(self):
         db = _new_session()
         try:

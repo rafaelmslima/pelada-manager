@@ -8,7 +8,8 @@ import {
   PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import * as Notifications from 'expo-notifications';
+import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -21,9 +22,28 @@ import { colors } from '@/theme';
 
 SplashScreen.preventAutoHideAsync();
 
+// Ao tocar na notificação do cronômetro, abre direto o confronto para finalizar/editar.
+function useTimerNotificationRouting() {
+  const router = useRouter();
+  useEffect(() => {
+    function go(response: Notifications.NotificationResponse | null) {
+      const data = response?.notification.request.content.data as { matchId?: number | string } | undefined;
+      if (data?.matchId != null) {
+        router.push({ pathname: '/live/[matchId]', params: { matchId: String(data.matchId), resume: '1' } });
+      }
+    }
+    const sub = Notifications.addNotificationResponseReceivedListener(go);
+    // Cold start: app aberto pelo toque na notificação.
+    Notifications.getLastNotificationResponseAsync().then(go).catch(() => {});
+    return () => sub.remove();
+  }, [router]);
+}
+
 function RootNavigator({ fontsReady }: { fontsReady: boolean }) {
   const { loading } = useAuth();
   const ready = fontsReady && !loading;
+
+  useTimerNotificationRouting();
 
   useEffect(() => {
     if (ready) {

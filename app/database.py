@@ -48,9 +48,9 @@ def ensure_legacy_multitenant_columns(target_engine: Engine = engine) -> None:
             "paid_month": "TEXT",
             "paid_date": "TEXT",
         },
-        "matches": {"pelada_id": "INTEGER"},
+        "matches": {"pelada_id": "INTEGER", "live_state": "TEXT"},
         "match_teams": {"pelada_id": "INTEGER"},
-        "match_players": {"pelada_id": "INTEGER"},
+        "match_players": {"pelada_id": "INTEGER", "wins": "INTEGER NOT NULL DEFAULT 0"},
         "finance_entries": {"ref_period": "TEXT"},
     }
 
@@ -81,6 +81,8 @@ _POSTGRES_ENSURE_STATEMENTS = [
     "ALTER TABLE players ADD COLUMN IF NOT EXISTS paid_month VARCHAR(7)",
     "ALTER TABLE players ADD COLUMN IF NOT EXISTS paid_date VARCHAR(10)",
     "ALTER TABLE finance_entries ADD COLUMN IF NOT EXISTS ref_period VARCHAR(10)",
+    "ALTER TABLE matches ADD COLUMN IF NOT EXISTS live_state TEXT",
+    "ALTER TABLE match_players ADD COLUMN IF NOT EXISTS wins INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE peladas ADD COLUMN IF NOT EXISTS public_token VARCHAR(64)",
     "CREATE UNIQUE INDEX IF NOT EXISTS ix_peladas_public_token ON peladas (public_token)",
     "ALTER TABLE players ADD COLUMN IF NOT EXISTS presence VARCHAR(20) NOT NULL DEFAULT 'pending'",

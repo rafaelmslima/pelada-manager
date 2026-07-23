@@ -116,6 +116,52 @@ def create_round(
     return crud.get_rounds_overview(db, match, pelada.id)
 
 
+@router.delete("/{match_id}/rounds", response_model=schemas.MatchRead)
+def clear_rounds(
+    match_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_user),
+):
+    """Encerra o dia: apaga os confrontos (economiza banco) e mantem os agregados dos jogadores."""
+    pelada = get_current_pelada(current_user)
+    match = crud.get_match(db, match_id, pelada.id)
+    if match is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pelada nao encontrada.")
+    crud.delete_match_rounds(db, match)
+    return crud.get_match(db, match_id, pelada.id)
+
+
+@router.put("/{match_id}/live", response_model=schemas.MatchRead)
+def save_live_state(
+    match_id: int,
+    payload: schemas.LiveStateUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_user),
+):
+    """Salva o confronto ao vivo em andamento (para retomar ao voltar/tocar na notificacao)."""
+    pelada = get_current_pelada(current_user)
+    match = crud.get_match(db, match_id, pelada.id)
+    if match is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pelada nao encontrada.")
+    crud.set_match_live_state(db, match, payload.state)
+    return crud.get_match(db, match_id, pelada.id)
+
+
+@router.delete("/{match_id}/live", response_model=schemas.MatchRead)
+def clear_live_state(
+    match_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(require_user),
+):
+    """Limpa o confronto ao vivo pendente (confronto finalizado)."""
+    pelada = get_current_pelada(current_user)
+    match = crud.get_match(db, match_id, pelada.id)
+    if match is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pelada nao encontrada.")
+    crud.set_match_live_state(db, match, None)
+    return crud.get_match(db, match_id, pelada.id)
+
+
 @router.get("/{match_id}/ratings", response_model=list[schemas.MatchRatingRead])
 def get_match_ratings(
     match_id: int,

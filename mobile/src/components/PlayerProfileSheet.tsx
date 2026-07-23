@@ -45,6 +45,7 @@ export function PlayerProfileSheet({
           <View style={styles.stats}>
             <Stat label="Gols" value={profile.total_goals} />
             <Stat label="Assist." value={profile.total_assists} />
+            <Stat label="Vitórias" value={profile.total_wins} />
             <Stat label="Peladas" value={profile.total_matches} />
             <Stat label="Time ★" value={profile.team_of_the_week_count} />
           </View>
@@ -88,9 +89,10 @@ function Stat({ label, value }: { label: string; value: number }) {
 
 const styles = StyleSheet.create({
   subtitle: { color: colors.ink2, fontSize: 14 },
-  stats: { flexDirection: 'row', gap: spacing.two },
+  stats: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.two },
   stat: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '30%',
     backgroundColor: colors.raised,
     borderRadius: radius.cardSm,
     paddingVertical: spacing.three,

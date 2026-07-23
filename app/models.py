@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -143,6 +143,8 @@ class Match(Base):
     pelada_id: Mapped[int] = mapped_column(ForeignKey("peladas.id"), nullable=False, index=True)
     date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(120), nullable=False)
+    # Estado do confronto ao vivo em andamento (JSON serializado pelo app). None = nenhum.
+    live_state: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, nullable=False)
 
     pelada: Mapped["Pelada"] = relationship(back_populates="matches")
@@ -183,6 +185,8 @@ class MatchPlayer(Base):
     player_id: Mapped[int] = mapped_column(ForeignKey("players.id"), nullable=False, index=True)
     goals: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     assists: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Vitorias do jogador nos confrontos ao vivo (agregado; sobrevive a limpeza dos rounds).
+    wins: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     was_in_team_of_the_week: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     match: Mapped["Match"] = relationship(back_populates="players")

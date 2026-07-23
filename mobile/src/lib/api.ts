@@ -131,6 +131,10 @@ export const api = {
   getRounds: (matchId: number) => request<RoundsOverview>(`/api/matches/${matchId}/rounds`),
   createRound: (matchId: number, payload: RoundCreatePayload) =>
     request<RoundsOverview>(`/api/matches/${matchId}/rounds`, { method: 'POST', json: payload }),
+  clearRounds: (matchId: number) => request<MatchRead>(`/api/matches/${matchId}/rounds`, { method: 'DELETE' }),
+  saveLiveState: (matchId: number, state: string | null) =>
+    request<MatchRead>(`/api/matches/${matchId}/live`, { method: 'PUT', json: { state } }),
+  clearLiveState: (matchId: number) => request<MatchRead>(`/api/matches/${matchId}/live`, { method: 'DELETE' }),
   getMatchRatings: (matchId: number) => request<MatchRating[]>(`/api/matches/${matchId}/ratings`),
   saveMatchRatings: (matchId: number, ratings: MatchRating[]) =>
     request<MatchRead>(`/api/matches/${matchId}/ratings`, { method: 'POST', json: { ratings } }),

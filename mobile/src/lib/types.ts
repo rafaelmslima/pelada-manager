@@ -147,6 +147,8 @@ export type RoundCreatePayload = {
   goals_b: number;
   duration_seconds: number;
   stats: { player_id: number; goals: number; assists: number }[];
+  team_a_players: number[];
+  team_b_players: number[];
 };
 
 export type PlayerPayload = {
@@ -219,6 +221,7 @@ export type MatchRead = {
   date: string;
   title: string;
   created_at: string;
+  live_state: string | null;
   teams: MatchTeam[];
 };
 
@@ -244,6 +247,7 @@ export type PlayerProfile = {
   total_matches: number;
   total_goals: number;
   total_assists: number;
+  total_wins: number;
   average_goals: number;
   average_assists: number;
   team_of_the_week_count: number;

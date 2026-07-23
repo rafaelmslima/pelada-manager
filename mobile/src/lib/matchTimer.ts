@@ -26,6 +26,7 @@ export async function scheduleTimerAlarm(
   secondsFromNow: number,
   title: string,
   body: string,
+  data?: Record<string, unknown>,
 ): Promise<string | null> {
   try {
     if (secondsFromNow <= 0) return null;
@@ -37,7 +38,7 @@ export async function scheduleTimerAlarm(
     }
     await ensureChannel();
     return await Notifications.scheduleNotificationAsync({
-      content: { title, body, sound: 'default' },
+      content: { title, body, sound: 'default', data: data ?? {} },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
         seconds: Math.max(1, Math.round(secondsFromNow)),

@@ -278,6 +278,14 @@ class RoundCreate(BaseModel):
     goals_b: int = Field(default=0, ge=0, le=99)
     duration_seconds: int = Field(default=0, ge=0, le=36000)
     stats: list[RoundPlayerStatInput] = Field(default_factory=list)
+    # Elenco efetivo de cada lado (base + reforcos) para creditar vitorias.
+    team_a_players: list[int] = Field(default_factory=list)
+    team_b_players: list[int] = Field(default_factory=list)
+
+
+class LiveStateUpdate(BaseModel):
+    # JSON serializado do confronto em andamento (schema pertence ao app). None limpa.
+    state: str | None = Field(default=None, max_length=40000)
 
 
 class RoundRead(BaseModel):
@@ -347,6 +355,7 @@ class MatchRead(BaseModel):
     date: date
     title: str
     created_at: datetime
+    live_state: str | None = None
     teams: list[MatchTeamRead]
 
 
@@ -374,6 +383,7 @@ class PlayerProfile(BaseModel):
     total_matches: int
     total_goals: int
     total_assists: int
+    total_wins: int
     average_goals: float
     average_assists: float
     team_of_the_week_count: int

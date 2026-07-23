@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 
 import { MatchStatsSheet } from '@/components/MatchStatsSheet';
 import { PlayerAvatar } from '@/components/PlayerAvatar';
@@ -10,9 +12,29 @@ import { Screen } from '@/components/Screen';
 import { Sheet } from '@/components/Sheet';
 import { GhostButton, PrimaryButton } from '@/components/form';
 import { api, ApiError } from '@/lib/api';
-import { formatDate, formatDateDisplay, formatPosition, formatRating } from '@/lib/format';
+import { formatDate, formatDateDisplay, formatMonthLabel, formatPosition, formatRating } from '@/lib/format';
 import type { MatchListItem, TeamPlayer, TeamResult } from '@/lib/types';
 import { colors, fonts, radius, spacing } from '@/theme';
+
+const SWIPE_THRESHOLD = 45;
+
+/** Gera as chaves "YYYY-MM" de forma contínua do mês mais novo ao mais antigo (desc). */
+function enumerateMonths(monthKeys: string[]): string[] {
+  if (monthKeys.length === 0) return [];
+  const sorted = [...monthKeys].sort();
+  const [oy, om] = sorted[0].split('-').map(Number);
+  let [y, m] = sorted[sorted.length - 1].split('-').map(Number);
+  const result: string[] = [];
+  while (y > oy || (y === oy && m >= om)) {
+    result.push(`${y}-${String(m).padStart(2, '0')}`);
+    m -= 1;
+    if (m === 0) {
+      m = 12;
+      y -= 1;
+    }
+  }
+  return result;
+}
 
 function recompute(team: TeamResult, players: TeamPlayer[]): TeamResult {
   const total = players.reduce((sum, p) => sum + p.rating, 0);
@@ -40,11 +62,65 @@ export default function TimesScreen() {
   const [ratingMatchId, setRatingMatchId] = useState<number | null>(null);
   const [matchActions, setMatchActions] = useState<MatchListItem | null>(null);
 
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+
   const loadMatches = useCallback(() => {
     api.listMatches().then(setMatches).catch(() => {});
   }, []);
 
   useFocusEffect(useCallback(() => loadMatches(), [loadMatches]));
+
+  // Histórico agrupado por mês (client-side) + range contínuo de meses navegáveis.
+  const matchesByMonth = useMemo(() => {
+    const map: Record<string, MatchListItem[]> = {};
+    for (const match of matches) {
+      const key = match.date.slice(0, 7);
+      (map[key] ||= []).push(match);
+    }
+    for (const key of Object.keys(map)) {
+      map[key].sort((a, b) => b.date.localeCompare(a.date));
+    }
+    return map;
+  }, [matches]);
+
+  const monthKeys = useMemo(() => enumerateMonths(Object.keys(matchesByMonth)), [matchesByMonth]);
+
+  // Mantém o mês selecionado válido: começa no mais recente e preserva a escolha entre reloads.
+  useEffect(() => {
+    setSelectedMonth((prev) => (prev && monthKeys.includes(prev) ? prev : (monthKeys[0] ?? null)));
+  }, [monthKeys]);
+
+  const monthIndex = selectedMonth ? monthKeys.indexOf(selectedMonth) : -1;
+  const canGoNewer = monthIndex > 0;
+  const canGoOlder = monthIndex >= 0 && monthIndex < monthKeys.length - 1;
+
+  // delta: -1 = mês mais novo, +1 = mês mais antigo (monthKeys está em ordem decrescente).
+  const changeMonth = useCallback(
+    (delta: number) => {
+      setSelectedMonth((prev) => {
+        if (!prev) return prev;
+        const next = monthKeys.indexOf(prev) + delta;
+        if (next < 0 || next >= monthKeys.length) return prev;
+        return monthKeys[next];
+      });
+    },
+    [monthKeys],
+  );
+
+  const monthSwipe = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetX([-20, 20])
+        .failOffsetY([-14, 14])
+        .onEnd((event) => {
+          'worklet';
+          if (event.translationX <= -SWIPE_THRESHOLD) runOnJS(changeMonth)(-1);
+          else if (event.translationX >= SWIPE_THRESHOLD) runOnJS(changeMonth)(1);
+        }),
+    [changeMonth],
+  );
+
+  const monthMatches = selectedMonth ? matchesByMonth[selectedMonth] ?? [] : [];
 
   async function generate() {
     const value = Math.max(1, Math.min(30, parseInt(perTeam, 10) || 5));
@@ -198,26 +274,59 @@ export default function TimesScreen() {
 
       {teams && <PrimaryButton label="Salvar pelada no histórico" onPress={save} loading={saving} />}
 
-      {/* Histórico */}
+      {/* Histórico mensal */}
       <Text style={styles.section}>Histórico</Text>
-      {matches.length === 0 ? (
+      {monthKeys.length === 0 ? (
         <Text style={styles.emptyHistory}>Nenhuma pelada salva ainda.</Text>
       ) : (
-        matches.map((match) => (
-          <TouchableOpacity
-            key={match.id}
-            style={styles.matchCard}
-            onPress={() => setMatchActions(match)}
-            activeOpacity={0.7}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.matchTitle}>{formatDateDisplay(match.date)}</Text>
-              <Text style={styles.matchMeta}>
-                {match.team_count} times · {match.player_count} jogadores
-              </Text>
+        <GestureDetector gesture={monthSwipe}>
+          <View style={styles.monthBlock}>
+            <View style={styles.monthNav}>
+              <TouchableOpacity
+                onPress={() => changeMonth(1)}
+                disabled={!canGoOlder}
+                hitSlop={10}
+                style={styles.monthArrow}>
+                <Ionicons name="chevron-back" size={22} color={canGoOlder ? colors.ink : colors.border2} />
+              </TouchableOpacity>
+              <View style={styles.monthLabelBox}>
+                <Text style={styles.monthLabel}>{selectedMonth ? formatMonthLabel(selectedMonth) : ''}</Text>
+                <Text style={styles.monthCount}>
+                  {monthMatches.length === 0
+                    ? 'Nenhuma pelada'
+                    : `${monthMatches.length} ${monthMatches.length === 1 ? 'pelada' : 'peladas'}`}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => changeMonth(-1)}
+                disabled={!canGoNewer}
+                hitSlop={10}
+                style={styles.monthArrow}>
+                <Ionicons name="chevron-forward" size={22} color={canGoNewer ? colors.ink : colors.border2} />
+              </TouchableOpacity>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.ink4} />
-          </TouchableOpacity>
-        ))
+
+            {monthMatches.length === 0 ? (
+              <Text style={styles.emptyHistory}>Nenhuma pelada neste mês. Arraste para o lado para ver outros.</Text>
+            ) : (
+              monthMatches.map((match) => (
+                <TouchableOpacity
+                  key={match.id}
+                  style={styles.matchCard}
+                  onPress={() => setMatchActions(match)}
+                  activeOpacity={0.7}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.matchTitle}>{formatDateDisplay(match.date)}</Text>
+                    <Text style={styles.matchMeta}>
+                      {match.team_count} times · {match.player_count} jogadores
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.ink4} />
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        </GestureDetector>
       )}
 
       {/* Sheet mover jogador */}
@@ -350,6 +459,28 @@ const styles = StyleSheet.create({
   teamPlayerMeta: { color: colors.ink3, fontSize: 12 },
 
   emptyHistory: { color: colors.ink3, fontSize: 13 },
+  monthBlock: { gap: spacing.three },
+  monthNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+    borderRadius: radius.cardMd,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.three,
+    paddingVertical: spacing.three,
+  },
+  monthArrow: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.chip,
+  },
+  monthLabelBox: { flex: 1, alignItems: 'center' },
+  monthLabel: { color: colors.ink, fontSize: 16, fontFamily: fonts.extrabold },
+  monthCount: { color: colors.ink3, fontSize: 12, marginTop: spacing.half },
   matchCard: {
     flexDirection: 'row',
     alignItems: 'center',

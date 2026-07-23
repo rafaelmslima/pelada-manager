@@ -454,6 +454,33 @@ def create_round(
             match_player.goals += stat.goals
             match_player.assists += stat.assists
 
+    # Credita vitoria aos jogadores do lado vencedor (empate nao credita). Usa o elenco
+    # efetivo enviado pelo app (base + reforcos), agregado em MatchPlayer.wins.
+    if data.goals_a != data.goals_b:
+        winners = data.team_a_players if data.goals_a > data.goals_b else data.team_b_players
+        for player_id in winners:
+            match_player = match_players_by_player.get(player_id)
+            if match_player is not None:
+                match_player.wins += 1
+
+    db.commit()
+
+
+def delete_match_rounds(db: Session, match: models.Match) -> None:
+    """Apaga os confrontos do dia (economiza banco). Mantem os agregados de MatchPlayer
+    (gols/assist/vitorias) e limpa o confronto ao vivo pendente."""
+    rounds = list(
+        db.scalars(select(models.MatchRound).where(models.MatchRound.match_id == match.id)).all()
+    )
+    for match_round in rounds:
+        db.delete(match_round)  # cascade remove os RoundPlayerStat
+    match.live_state = None
+    db.commit()
+
+
+def set_match_live_state(db: Session, match: models.Match, state: str | None) -> None:
+    """Salva/limpa o estado do confronto ao vivo em andamento (JSON do app)."""
+    match.live_state = state
     db.commit()
 
 
@@ -637,6 +664,7 @@ def get_player_profile(db: Session, player: models.Player, pelada_id: int) -> sc
     total_matches = len(entries)
     total_goals = sum(entry.goals for entry in entries)
     total_assists = sum(entry.assists for entry in entries)
+    total_wins = sum(entry.wins for entry in entries)
     team_of_the_week_count = sum(1 for entry in entries if entry.was_in_team_of_the_week)
 
     return schemas.PlayerProfile(
@@ -644,6 +672,7 @@ def get_player_profile(db: Session, player: models.Player, pelada_id: int) -> sc
         total_matches=total_matches,
         total_goals=total_goals,
         total_assists=total_assists,
+        total_wins=total_wins,
         average_goals=round(total_goals / total_matches, 2) if total_matches else 0,
         average_assists=round(total_assists / total_matches, 2) if total_matches else 0,
         team_of_the_week_count=team_of_the_week_count,
