@@ -4,6 +4,7 @@
 export type Position = 'defesa' | 'meio' | 'ataque';
 export type BillingType = 'mensalista' | 'diarista';
 export type PresenceStatus = 'pending' | 'confirmed' | 'declined';
+export type DrawMode = 'simples' | 'equilibrado' | 'posicao' | 'completo';
 
 export type User = {
   id: number;

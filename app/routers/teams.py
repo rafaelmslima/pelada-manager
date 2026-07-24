@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app import crud, models, schemas
 from app.auth import get_current_pelada, require_user
 from app.database import get_db
-from app.services.team_balancer import generate_balanced_teams
+from app.services.team_balancer import generate_teams
 
 
 router = APIRouter(prefix="/api/teams", tags=["teams"])
@@ -24,7 +24,7 @@ def generate_teams(
             detail="Selecione ao menos um jogador para gerar os times.",
         )
 
-    teams, reserves = generate_balanced_teams(active_players, request.players_per_team)
+    teams, reserves = generate_teams(active_players, request.players_per_team, request.mode)
     overdue = crud.overdue_confirmed_mensalistas(db, pelada)
 
     return schemas.TeamGenerateResponse(

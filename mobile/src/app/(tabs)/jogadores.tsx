@@ -16,6 +16,7 @@ import type { Player } from '@/lib/types';
 import { colors, fonts, radius, spacing } from '@/theme';
 
 type Filter = 'todos' | 'conf' | 'pend';
+type ListItem = { kind: 'header'; label: string; count: number } | { kind: 'player'; player: Player };
 
 export default function JogadoresScreen() {
   const { session } = useAuth();
@@ -46,6 +47,23 @@ export default function JogadoresScreen() {
     });
   }, [players, search, filter]);
 
+  // Na aba "Todos", separa mensalistas (topo) e diaristas (base). Nas outras, lista simples.
+  const listData = useMemo<ListItem[]>(() => {
+    if (filter !== 'todos') return filtered.map((p) => ({ kind: 'player', player: p }));
+    const mensalistas = filtered.filter((p) => p.billing_type === 'mensalista');
+    const diaristas = filtered.filter((p) => p.billing_type !== 'mensalista');
+    const out: ListItem[] = [];
+    if (mensalistas.length) {
+      out.push({ kind: 'header', label: 'Mensalistas', count: mensalistas.length });
+      mensalistas.forEach((p) => out.push({ kind: 'player', player: p }));
+    }
+    if (diaristas.length) {
+      out.push({ kind: 'header', label: 'Diaristas', count: diaristas.length });
+      diaristas.forEach((p) => out.push({ kind: 'player', player: p }));
+    }
+    return out;
+  }, [filtered, filter]);
+
   const confirmed = players.filter((p) => p.is_active).length;
 
   async function toggle(player: Player) {
@@ -60,7 +78,7 @@ export default function JogadoresScreen() {
 
   function confirmDelete(player: Player) {
     setSelected(null);
-    Alert.alert('Excluir jogador', `Remover ${player.name}? Não é possível se ele tiver histórico.`, [
+    Alert.alert('Excluir jogador', `Remover ${player.name}? O histórico e as estatísticas dele também serão apagados.`, [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Excluir',
@@ -89,8 +107,8 @@ export default function JogadoresScreen() {
   return (
     <View style={styles.page}>
       <FlatList
-        data={filtered}
-        keyExtractor={(item) => String(item.id)}
+        data={listData}
+        keyExtractor={(item) => (item.kind === 'header' ? `h-${item.label}` : `p-${item.player.id}`)}
         contentContainerStyle={{ paddingTop: insets.top + spacing.four, paddingHorizontal: spacing.four, paddingBottom: 120 }}
         ListHeaderComponent={
           <View style={{ gap: spacing.three, marginBottom: spacing.three }}>
@@ -128,9 +146,13 @@ export default function JogadoresScreen() {
             )}
           </View>
         }
-        renderItem={({ item }) => (
-          <PlayerRow player={item} onToggle={() => toggle(item)} onPress={() => setSelected(item)} />
-        )}
+        renderItem={({ item }) =>
+          item.kind === 'header' ? (
+            <SectionHeader label={item.label} count={item.count} />
+          ) : (
+            <PlayerRow player={item.player} onToggle={() => toggle(item.player)} onPress={() => setSelected(item.player)} />
+          )
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="football" size={30} color={colors.ink4} />
@@ -203,6 +225,15 @@ function PlayerRow({ player, onToggle, onPress }: { player: Player; onToggle: ()
   );
 }
 
+function SectionHeader({ label, count }: { label: string; count: number }) {
+  return (
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionHeaderText}>{label}</Text>
+      <Text style={styles.sectionHeaderCount}>{count}</Text>
+    </View>
+  );
+}
+
 function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (
     <TouchableOpacity style={[styles.chip, active && styles.chipActive]} onPress={onPress} activeOpacity={0.8}>
@@ -239,6 +270,22 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.two,
   },
   searchInput: { flex: 1, color: colors.ink, fontSize: 15, paddingVertical: spacing.one },
+
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.two,
+    marginBottom: spacing.two,
+  },
+  sectionHeaderText: {
+    color: colors.ink,
+    fontSize: 13,
+    fontFamily: fonts.extrabold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  sectionHeaderCount: { color: colors.ink3, fontSize: 13, fontFamily: fonts.bold },
 
   chips: { flexDirection: 'row', gap: spacing.two },
   chip: {

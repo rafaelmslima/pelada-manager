@@ -372,3 +372,99 @@ def _sort_players_inside_teams(teams: list[BalancedTeam]) -> None:
                 player.name,
             )
         )
+
+
+# --- Modos de sorteio ---------------------------------------------------------
+
+DRAW_MODES = ("simples", "equilibrado", "posicao", "completo")
+
+
+def generate_teams(
+    players: list[Player],
+    players_per_team: int,
+    mode: str = "completo",
+    rng: Random | None = None,
+) -> tuple[list[BalancedTeam], list[Player]]:
+    """Gera times conforme o modo de sorteio escolhido.
+
+    - simples: aleatório puro (ignora nota e posição)
+    - equilibrado: balanceia pela nota (estrelas), sem otimizar posição
+    - posicao: distribui as posições uniformemente, ignora a nota
+    - completo: nota + posição (comportamento padrão)
+    """
+    rng = rng or Random()
+    if players_per_team < 1:
+        raise ValueError("A quantidade de jogadores por time deve ser maior que zero.")
+    if mode == "simples":
+        return _generate_simple_teams(players, players_per_team, rng)
+    if mode == "equilibrado":
+        return _generate_rating_teams(players, players_per_team, rng)
+    if mode == "posicao":
+        return _generate_position_teams(players, players_per_team, rng)
+    return generate_balanced_teams(players, players_per_team, rng)
+
+
+def _team_count(player_count: int, players_per_team: int) -> int:
+    return ceil(player_count / players_per_team) if player_count else 0
+
+
+def _generate_simple_teams(
+    players: list[Player], players_per_team: int, rng: Random
+) -> tuple[list[BalancedTeam], list[Player]]:
+    number_of_teams = _team_count(len(players), players_per_team)
+    if number_of_teams == 0:
+        return [], []
+    teams = _create_teams(number_of_teams, players_per_team)
+    shuffled = list(players)
+    rng.shuffle(shuffled)
+    draft_sequence = _randomized_draft_sequence(number_of_teams, players_per_team, len(shuffled), rng)
+    for team_index, player in zip(draft_sequence, shuffled):
+        teams[team_index].players.append(player)
+    for team in teams:
+        team.players.sort(key=lambda player: player.name)
+    return teams, []
+
+
+def _generate_rating_teams(
+    players: list[Player], players_per_team: int, rng: Random
+) -> tuple[list[BalancedTeam], list[Player]]:
+    selected, reserves, number_of_teams = select_players_for_teams(players, players_per_team)
+    if number_of_teams == 0:
+        return [], sort_players_by_rating(players)
+    candidates: list[list[BalancedTeam]] = []
+    for _ in range(BALANCED_TEAM_ATTEMPTS):
+        teams = distribute_by_randomized_rating(selected, number_of_teams, players_per_team, rng)
+        _sort_players_inside_teams(teams)
+        candidates.append(teams)
+    candidates.sort(key=_average_rating_gap)
+    best_candidates = candidates[: min(BEST_CANDIDATE_POOL_SIZE, len(candidates))]
+    return rng.choice(best_candidates), reserves
+
+
+def _generate_position_teams(
+    players: list[Player], players_per_team: int, rng: Random
+) -> tuple[list[BalancedTeam], list[Player]]:
+    number_of_teams = _team_count(len(players), players_per_team)
+    if number_of_teams == 0:
+        return [], []
+    teams = _create_teams(number_of_teams, players_per_team)
+
+    ordered: list[Player] = []
+    for position in POSITIONS:
+        group = [player for player in players if player.position == position]
+        rng.shuffle(group)
+        ordered.extend(group)
+    others = [player for player in players if player.position not in POSITIONS]
+    rng.shuffle(others)
+    ordered.extend(others)
+
+    for player in ordered:
+        available = [team for team in teams if not team.is_full]
+        if not available:
+            break
+        # Entra no time com menos jogadores daquela posição (e menor no total, para equilibrar tamanhos).
+        team = min(available, key=lambda t: (t.position_count(player.position), len(t.players)))
+        team.players.append(player)
+
+    _sort_players_inside_teams(teams)
+    return teams, []

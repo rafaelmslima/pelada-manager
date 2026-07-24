@@ -151,6 +151,32 @@ class RoundsTest(unittest.TestCase):
         finally:
             db.close()
 
+    def test_delete_player_with_history(self):
+        db = _new_session()
+        try:
+            pelada, match, team_a, team_b, p1, p2 = _pelada_with_teams(db)
+            crud.create_round(
+                db,
+                match,
+                schemas.RoundCreate(
+                    team_a_id=team_a.id,
+                    team_b_id=team_b.id,
+                    goals_a=1,
+                    goals_b=0,
+                    stats=[schemas.RoundPlayerStatInput(player_id=p1.id, goals=1)],
+                    team_a_players=[p1.id],
+                    team_b_players=[p2.id],
+                ),
+                pelada.id,
+            )
+            # p1 tem histórico (MatchPlayer + RoundPlayerStat) — exclusão deve funcionar mesmo assim.
+            crud.delete_player(db, p1, pelada.id)
+            self.assertIsNone(crud.get_player(db, p1.id, pelada.id))
+            match = crud.get_match(db, match.id, pelada.id)
+            self.assertTrue(all(mp.player_id != p1.id for mp in match.players))
+        finally:
+            db.close()
+
     def test_round_rejects_same_team(self):
         db = _new_session()
         try:

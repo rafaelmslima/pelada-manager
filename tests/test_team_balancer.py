@@ -6,6 +6,7 @@ from app.services.team_balancer import (
     calculate_team_score,
     distribute_by_rating,
     generate_balanced_teams,
+    generate_teams,
     improve_position_balance,
 )
 
@@ -196,6 +197,49 @@ def _rating_gap(teams) -> float:
 
 def _team_signature(teams) -> tuple[tuple[str, ...], ...]:
     return tuple(sorted(tuple(sorted(player.name for player in team.players)) for team in teams))
+
+
+class DrawModesTest(unittest.TestCase):
+    def _players(self):
+        # 4 defesa, 4 meio, 4 ataque com notas variadas
+        players = []
+        pid = 0
+        for position in ("defesa", "meio", "ataque"):
+            for rating in (5, 4, 2, 1):
+                pid += 1
+                players.append(make_player(pid, f"{position}{pid}", rating, position))
+        return players
+
+    def _all_placed(self, teams, expected):
+        placed = [p for team in teams for p in team.players]
+        self.assertEqual(len(placed), expected)
+
+    def test_simple_mode_places_everyone(self):
+        players = self._players()
+        teams, reserves = generate_teams(players, 6, mode="simples", rng=Random(1))
+        self.assertEqual(len(teams), 2)
+        self._all_placed(teams, 12)
+        self.assertEqual(reserves, [])
+
+    def test_balanced_mode_keeps_rating_gap_small(self):
+        players = self._players()
+        teams, _ = generate_teams(players, 6, mode="equilibrado", rng=Random(1))
+        self._all_placed(teams, 12)
+        self.assertLessEqual(_rating_gap(teams), 2.0)
+
+    def test_position_mode_spreads_positions_evenly(self):
+        players = self._players()
+        teams, _ = generate_teams(players, 6, mode="posicao", rng=Random(1))
+        self._all_placed(teams, 12)
+        # Cada time deve ter ~2 de cada posição (4 por posição / 2 times)
+        for team in teams:
+            for position in ("defesa", "meio", "ataque"):
+                self.assertEqual(team.position_count(position), 2)
+
+    def test_complete_mode_matches_balanced_generator(self):
+        players = self._players()
+        teams, _ = generate_teams(players, 6, mode="completo", rng=Random(1))
+        self._all_placed(teams, 12)
 
 
 if __name__ == "__main__":

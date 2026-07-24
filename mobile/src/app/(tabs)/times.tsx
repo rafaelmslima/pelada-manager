@@ -14,10 +14,23 @@ import { GhostButton, PrimaryButton } from '@/components/form';
 import { api, ApiError } from '@/lib/api';
 import { formatDate, formatDateDisplay, formatMonthLabel, formatPosition, formatRating } from '@/lib/format';
 import { haptics } from '@/lib/haptics';
-import type { MatchListItem, TeamPlayer, TeamResult } from '@/lib/types';
+import type { DrawMode, MatchListItem, TeamPlayer, TeamResult } from '@/lib/types';
 import { colors, fonts, radius, spacing } from '@/theme';
 
 const SWIPE_THRESHOLD = 45;
+
+const DRAW_MODE_OPTIONS: { mode: DrawMode; title: string; desc: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { mode: 'completo', title: 'Sorteio completo', desc: 'Equilibra por nota E posição (recomendado)', icon: 'sparkles' },
+  { mode: 'equilibrado', title: 'Sorteio equilibrado', desc: 'Equilibra só pela nota (estrelas)', icon: 'star' },
+  { mode: 'posicao', title: 'Sorteio por posição', desc: 'Distribui as posições, ignora a nota', icon: 'shirt' },
+  { mode: 'simples', title: 'Sorteio simples', desc: 'Aleatório puro, sem nota nem posição', icon: 'shuffle' },
+];
+const DRAW_MODE_LABELS: Record<DrawMode, string> = {
+  completo: 'completo',
+  equilibrado: 'equilibrado',
+  posicao: 'por posição',
+  simples: 'simples',
+};
 
 /** Gera as chaves "YYYY-MM" de forma contínua do mês mais novo ao mais antigo (desc). */
 function enumerateMonths(monthKeys: string[]): string[] {
@@ -56,6 +69,8 @@ export default function TimesScreen() {
   const [saving, setSaving] = useState(false);
   const [moving, setMoving] = useState<{ player: TeamPlayer; fromIndex: number } | null>(null);
   const [overdue, setOverdue] = useState<{ id: number; name: string }[]>([]);
+  const [modeSheetOpen, setModeSheetOpen] = useState(false);
+  const [lastMode, setLastMode] = useState<DrawMode>('completo');
 
   const router = useRouter();
   const [matches, setMatches] = useState<MatchListItem[]>([]);
@@ -123,12 +138,14 @@ export default function TimesScreen() {
 
   const monthMatches = selectedMonth ? matchesByMonth[selectedMonth] ?? [] : [];
 
-  async function generate() {
+  async function generate(mode: DrawMode) {
     const value = Math.max(1, Math.min(30, parseInt(perTeam, 10) || 5));
     setPerTeam(String(value));
+    setLastMode(mode);
+    setModeSheetOpen(false);
     setGenerating(true);
     try {
-      const resp = await api.generateTeams(value);
+      const resp = await api.generateTeams(value, mode);
       setTeams(resp.teams);
       setOverdue(resp.overdue_mensalistas);
       haptics[resp.overdue_mensalistas.length > 0 ? 'warning' : 'success']();
@@ -214,9 +231,9 @@ export default function TimesScreen() {
 
       {/* Gerador */}
       <View style={styles.generatorCard}>
-        <Text style={styles.section}>Gerar times equilibrados</Text>
+        <Text style={styles.section}>Gerar times</Text>
         <Text style={styles.sectionHint}>
-          O sorteio balanceia por nota e posição usando os jogadores confirmados.
+          Escolha como sortear: simples, por nota, por posição ou completo.
         </Text>
         <View style={styles.perTeamRow}>
           <Text style={styles.perTeamLabel}>Jogadores por time</Text>
@@ -228,11 +245,27 @@ export default function TimesScreen() {
             maxLength={2}
           />
         </View>
-        <PrimaryButton label="Gerar times" onPress={generate} loading={generating} />
+        <PrimaryButton label="Gerar times" onPress={() => setModeSheetOpen(true)} loading={generating} />
         {teams && !generating && (
-          <GhostButton label="Gerar novamente" onPress={generate} />
+          <GhostButton label={`Gerar novamente (${DRAW_MODE_LABELS[lastMode]})`} onPress={() => generate(lastMode)} />
         )}
       </View>
+
+      {/* Menu de modos de sorteio */}
+      <Sheet visible={modeSheetOpen} onClose={() => setModeSheetOpen(false)} title="Como sortear os times?">
+        {DRAW_MODE_OPTIONS.map((opt) => (
+          <TouchableOpacity key={opt.mode} style={styles.modeRow} onPress={() => generate(opt.mode)} activeOpacity={0.8}>
+            <View style={styles.modeIcon}>
+              <Ionicons name={opt.icon} size={20} color={colors.ink} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.modeTitle}>{opt.title}</Text>
+              <Text style={styles.modeDesc}>{opt.desc}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.ink4} />
+          </TouchableOpacity>
+        ))}
+      </Sheet>
 
       {/* Aviso de mensalistas atrasados no sorteio */}
       {teams && overdue.length > 0 && (
@@ -245,6 +278,7 @@ export default function TimesScreen() {
       )}
 
       {/* Resultado */}
+      {teams && <Text style={styles.resultMode}>Sorteio {DRAW_MODE_LABELS[lastMode]}</Text>}
       {teams &&
         teams.map((team, index) => (
           <View key={index} style={styles.teamCard}>
@@ -439,6 +473,30 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     minWidth: 60,
     textAlign: 'center',
+  },
+
+  modeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.three,
+    paddingVertical: spacing.two,
+  },
+  modeIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.chip,
+    backgroundColor: colors.raised,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeTitle: { color: colors.ink, fontSize: 15, fontFamily: fonts.bold },
+  modeDesc: { color: colors.ink3, fontSize: 12 },
+  resultMode: {
+    color: colors.ink3,
+    fontSize: 12,
+    fontFamily: fonts.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 
   teamCard: {

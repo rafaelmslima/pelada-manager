@@ -1,7 +1,7 @@
 import secrets
 from datetime import date, datetime, timedelta, timezone
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app import models, schemas
@@ -105,14 +105,16 @@ def update_player(
 
 
 def delete_player(db: Session, player: models.Player, pelada_id: int) -> None:
-    has_history = db.scalars(
-        select(models.MatchPlayer.id)
-        .where(models.MatchPlayer.player_id == player.id, models.MatchPlayer.pelada_id == pelada_id)
-        .limit(1)
-    ).first()
-    if has_history:
-        raise ValueError("Nao e possivel excluir jogador com historico de peladas.")
-
+    # Exclui o jogador junto com o historico/estatisticas ligados a ele. Os lancamentos
+    # financeiros permanecem no caixa (valor real ja movimentado), apenas sem o vinculo.
+    db.execute(delete(models.RoundPlayerStat).where(models.RoundPlayerStat.player_id == player.id))
+    db.execute(delete(models.PlayerRating).where(models.PlayerRating.player_id == player.id))
+    db.execute(delete(models.MatchPlayer).where(models.MatchPlayer.player_id == player.id))
+    db.execute(
+        update(models.FinanceEntry)
+        .where(models.FinanceEntry.player_id == player.id)
+        .values(player_id=None)
+    )
     db.delete(player)
     db.commit()
 

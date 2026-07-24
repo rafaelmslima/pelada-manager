@@ -170,8 +170,13 @@ class PlayerRead(PlayerBase):
     created_at: datetime
 
 
+DrawMode = Literal["simples", "equilibrado", "posicao", "completo"]
+
+
 class TeamGenerateRequest(BaseModel):
     players_per_team: int = Field(..., ge=1, le=30)
+    # Modo do sorteio: simples (aleatorio), equilibrado (nota), posicao, completo (nota+posicao).
+    mode: DrawMode = "completo"
 
 
 class TeamPlayer(BaseModel):

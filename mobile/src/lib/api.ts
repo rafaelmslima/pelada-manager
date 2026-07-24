@@ -4,6 +4,7 @@ import type {
   AuthMe,
   BillingStatus,
   ConfirmationLink,
+  DrawMode,
   FinanceOverview,
   MatchListItem,
   MatchRating,
@@ -115,8 +116,8 @@ export const api = {
   deactivateAllPlayers: () => request<Player[]>('/api/players/deactivate-all', { method: 'PATCH' }),
   playerProfile: (id: number) => request<PlayerProfile>(`/api/players/${id}/profile`),
 
-  generateTeams: (players_per_team: number) =>
-    request<TeamGenerateResponse>('/api/teams/generate', { method: 'POST', json: { players_per_team } }),
+  generateTeams: (players_per_team: number, mode: DrawMode = 'completo') =>
+    request<TeamGenerateResponse>('/api/teams/generate', { method: 'POST', json: { players_per_team, mode } }),
 
   listMatches: () => request<MatchListItem[]>('/api/matches'),
   getMatch: (id: number) => request<MatchRead>(`/api/matches/${id}`),
